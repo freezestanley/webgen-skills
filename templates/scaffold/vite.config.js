@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import zipPack from "vite-plugin-zip-pack";
 import net from "net";
 
 /**
@@ -26,7 +27,10 @@ export default defineConfig(async () => {
   }
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      zipPack()
+    ],
     server: {
       port,
       strictPort: false,
