@@ -197,7 +197,9 @@ projects/
 
 安装依赖技能,如解析失败请手动安装
 - `npx skills add https://github.com/greensock/gsap-skills`
-- `npx impeccable install`
+- `npx impeccable install` 选openclaw
 - `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`
 - `npx skills add anthropics/skills --skill frontend-design`
 - `npx skills add ofershap/tailwind-best-practices`
+- 将./config.js中OUTPUT_DIR改为`/home/ubuntu/claw-workspace/projects`
+
