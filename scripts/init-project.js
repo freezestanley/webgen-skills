@@ -16,7 +16,9 @@
 
 const fs = require("fs");
 const path = require("path");
-const config = require("../config");
+// SKILL_ROOT 固定为 webgen/ 目录，不依赖 CWD
+const SKILL_ROOT = path.resolve(__dirname, "..");
+const config = require(path.join(SKILL_ROOT, "config"));
 
 function copyDir(src, dest) {
   if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
@@ -38,7 +40,10 @@ if (!projectName) {
   process.exit(1);
 }
 
-const baseDir = path.resolve(outputDir || config.OUTPUT_DIR);
+// OUTPUT_DIR 相对 SKILL_ROOT 展开，不依赖 CWD
+const baseDir = outputDir
+  ? path.resolve(outputDir)
+  : path.resolve(SKILL_ROOT, config.OUTPUT_DIR);
 const projectDir = path.join(baseDir, projectName);
 const webgenDir = path.join(projectDir, config.WEBGEN_DIR);
 

@@ -1,3 +1,8 @@
+---
+name: webgen
+description: 前端页面从需求到发布的完整 SOP skill，含 Gate 状态机强制管控。用于生成基于 Vite + React + Tailwind + antd + zustand 的前端页面项目。
+---
+
 # webgen — 前端页面生成 Skill
 
 > 版本：2.0 | 适用：OpenClaw 平台 | 技术栈：Vite + React + Tailwind + antd + zustand
@@ -98,7 +103,7 @@ node scripts/gate.js status <project-path>
 **大文件处理协议**：
 ```
 如果需要读取已有大文件：
-  1. 读取文件前 100 行 → 总结结构
+  1. 读取文件前 80 行 → 总结结构
   2. 读取中间部分 → 总结逻辑
   3. 读取末尾部分 → 确认完整性
   4. 基于总结执行修改，不保留原文
@@ -121,20 +126,21 @@ node scripts/gate.js status <project-path>
 ### G4_AUDIT → G5_PREVIEW：用户预览
 
 **执行步骤**：
-1. 告知用户启动开发服务器：
+1. 直接启动开发服务器并在浏览器最大化并在内打开页面,给用户预览追问是否可发布或修改意见：
    ```bash
    cd <project-path> && npm install && npm run dev
    # → http://localhost:5173
    ```
 2. **等待用户在浏览器预览并口头确认**："预览通过，可以发布"
-3. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "预览通过，可以发布"`
+3. 用户确认后：
+  `node scripts/gate.js advance <project-path> --confirm "预览通过，可以发布"`
 
 ---
 
 ### G5_PREVIEW → G6_PUBLISH → DONE：发布
 
 **执行步骤**：
-1. 向用户确认发布目标目录（如有）
+1. 执行`npm run build && npm run preview`并在浏览器最大化并在内打开页面，向用户确认是否发布
 2. **等待用户口头确认发布**
 3. 执行：`node scripts/publish.js <project-path> [--dest <dir>]`
 4. `publish.js` 构建成功后自动推进 Gate 到 DONE

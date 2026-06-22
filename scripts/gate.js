@@ -15,7 +15,8 @@
 
 const fs = require("fs");
 const path = require("path");
-const config = require("../config");
+const SKILL_ROOT = path.resolve(__dirname, "..");
+const config = require(path.join(SKILL_ROOT, "config"));
 
 const GATES = [
   "G0_INIT",

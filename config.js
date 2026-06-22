@@ -4,7 +4,7 @@
  */
 module.exports = {
   // 子项目默认输出根目录（可被用户在会话中覆盖，但必须写回此文件）
-  OUTPUT_DIR: "./projects",
+  OUTPUT_DIR: "/Users/za-stanlexu/Desktop/ff/d/projects",
 
   // .webgen 状态文件夹名（子项目内）
   WEBGEN_DIR: ".webgen",

@@ -2,11 +2,8 @@
   "name": "webgen",
   "version": "2.0.0",
   "description": "前端页面从需求到发布的完整 SOP skill，含 Gate 状态机强制管控",
-  "skills": [
-    {
-      "name": "webgen",
-      "description": "前端页面生成：需求确认 → 方案输出 → 代码落地 → 自检 → 预览 → 发布，Gate 强制管控每个阶段",
-      "entrypoint": "SKILL.md"
-    }
-  ]
+  "author": {
+    "name": "xx",
+    "email": "xx@qq.com"
+  }
 }

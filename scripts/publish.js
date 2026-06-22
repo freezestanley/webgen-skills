@@ -9,7 +9,8 @@
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
-const config = require("../config");
+const SKILL_ROOT = path.resolve(__dirname, "..");
+const config = require(path.join(SKILL_ROOT, "config"));
 
 const args = process.argv.slice(2);
 const projectPath = args[0];
