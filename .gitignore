@@ -1,0 +1,16 @@
+*/node_modules/
+*/dist/
+*/build/
+*/coverage/
+*/.vscode/
+*/.idea/
+*/.DS_Store
+*/Thumbs.db
+*/*.log
+*/*.sqlite3
+*/__pycache__/
+*/pycache
+*/*.pyc
+*/*.pyo
+*/*.pyd
+*/projects
