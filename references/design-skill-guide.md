@@ -9,6 +9,7 @@
 | 场景 | 直达文件 |
 | :--- | :--- |
 | 查阅完整目录与阅读路径 | [impeccable/00-index.md](./impeccable/00-index.md) |
+| 页面类型灵感参考（Landing / Admin / Form） | [design/Landing.md](./design/Landing.md)、[design/admin.md](./design/admin.md)、[design/form.md](./design/form.md) |
 | 设计口味基准值 + 全局禁令 | [impeccable/01-design-taste-baseline.md](./impeccable/01-design-taste-baseline.md) |
 | Gate 控制 + 准出脚本 + 异常路径 | [impeccable/02-gate-control.md](./impeccable/02-gate-control.md) |
 | 阶段 0：初始化 / 技术栈声明 | [impeccable/03-phase0-setup.md](./impeccable/03-phase0-setup.md) |

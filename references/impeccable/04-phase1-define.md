@@ -10,6 +10,18 @@
 ### 第一步：`/impeccable shape`
 
 - 读取 `PRODUCT.md`、`DESIGN.md`、`requirements.md`。
+- 根据页面类型，加载对应的灵感参考文件，作为 Block Tree 的起点参照：
+
+  | 页面类型 | 加载文件 |
+  | :--- | :--- |
+  | 宣传类 / Landing / 品牌页 | `references/design/Landing.md` |
+  | 后管系统 / Dashboard | `references/design/admin.md` |
+  | 表单 / 登录 / 注册 | `references/design/form.md` |
+
+  加载后执行两步提取：
+  1. 提取模板中的**设计拨盘值**（`DESIGN_VARIANCE` / `MOTION_INTENSITY` / `VISUAL_DENSITY`）作为 Design Tokens 的初始范围。
+  2. 提取模板中的**规则清单**，追加至 critique 的约束条件。
+
 - 指定目标页面范围（单页 or 全站，多页项目需逐页执行）。
 - 输出 Block Tree + Design Tokens YAML，写入 `.webgen/shape-output.md`。
 
