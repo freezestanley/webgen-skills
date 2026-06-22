@@ -24,7 +24,7 @@ G0_INIT → G1_REQUIREMENTS → G2_DESIGN → G3_DEV → G4_AUDIT → G5_PREVIEW
 1. **禁止跳跃**：每次只能推进一个 Gate，`advance` 命令由工程代码控制
 2. **阻塞优先**：任何阶段出现 BLOCKER，立即执行 `gate.js block`，解决后再 `unblock`
 3. **用户确认门**：G1/G2/G5/G6 必须有用户的明确口头确认，LLM 不得代替用户确认；推进命令必须携带 `--confirm "用户原话"`
-4. **强制 compact**：从 G2_DESIGN 进入 G3_DEV 前必须先执行 `/compact`，推进命令必须额外携带 `--compact`
+4. **强制 compact**：从 G2_DESIGN 进入 G3_DEV 前必须先自动HANDOFF -> 再自动执行 `/compact` -> 恢复后续任务，推进命令必须额外携带 `--compact`
 5. **发布独占**：G6_PUBLISH 禁止执行 `gate.js advance`，只能运行 `publish.js` 推进到 DONE
 
 ## Gate 状态文件格式（.webgen/gate.json）

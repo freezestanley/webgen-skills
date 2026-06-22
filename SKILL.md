@@ -158,12 +158,14 @@ node scripts/gate.js status <project-path>
 
 ## context 容量管控
 
+**/compact 前必须执行 HANDOFF 协议**（见全局规则）
+
 | 阈值 | 动作 |
 |------|------|
-| 80% | 中断当前操作，先执行 /compact |
-| 进入 G3_DEV 前 | 强制执行 /compact |
+| 80% | 中断当前操作，先自动执行 /compact |
+| 进入 G3_DEV 前 | 强制自动执行 /compact |
 
-**/compact 前必须执行 HANDOFF 协议**（见全局规则）
+自动/compact后自动读取HANDOFF恢复任务
 
 ---
 
