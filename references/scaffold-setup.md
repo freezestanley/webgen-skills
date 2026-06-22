@@ -1,99 +1,176 @@
-# 脚手架使用说明
+# Scaffold 使用说明
 
-## 模板位置
+## 技术栈（禁止修改）
 
-```
-templates/scaffold/          ← 标准脚手架模板
-  index.html
-  main.js
-  styles/
-    main.css
-  sections/
-    .gitkeep
-  js/
-    .gitkeep
-  docs/
-    .gitkeep
-  tailwind.config.js
-  vite.config.js
-  package.json
-```
+| 技术 | 版本约束 | 用途 |
+|------|----------|------|
+| Vite | ^5.x | 构建工具 + dev server + API proxy |
+| React | ^18.x | UI 框架 |
+| react-router-dom | ^6.x | 客户端路由 |
+| Tailwind CSS | ^3.x | utility-first CSS |
+| antd | ^5.x | UI 组件库 |
+| zustand | ^4.x | 状态管理 |
+| axios | ^1.x | HTTP 客户端 |
 
-## 初始化步骤
+**违规检查**：用户要求修改技术栈时，明确拒绝并说明原因。
+
+---
+
+## 初始化新项目
 
 ```bash
-# 1. 复制模板
-cp -r <skill目录>/templates/scaffold/ ./<项目名>/
+# 在 webgen/ 目录下执行
+node scripts/init-project.js <project-name>
 
-# 2. 进入项目目录
-cd <项目名>
-
-# 3. 安装依赖
-npm install
-
-# 4. 启动开发服务器
-npm run dev
-# 默认端口：5173
-
-# 5. 构建
-npm run build
-# 产物在 ./dist/
+# 指定输出目录
+node scripts/init-project.js <project-name> ./projects
 ```
 
-## package.json 标准配置
+执行后会生成：
+```
+projects/<project-name>/
+  .webgen/
+    gate.json
+    requirements.md
+    design.md
+    audit.md
+  index.html
+  main.js
+  package.json
+  vite.config.js
+  tailwind.config.js
+  postcss.config.js
+  styles/main.css
+  sections/
+  js/
+  docs/
+```
 
-```json
-{
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "vite": "^5.0.0",
-    "tailwindcss": "^3.4.0",
-    "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0"
-  }
+---
+
+## Tailwind + antd 共存配置
+
+**关键**：在 `tailwind.config.js` 中关闭 `preflight`，避免覆盖 antd 的 base styles：
+
+```js
+corePlugins: {
+  preflight: false
 }
 ```
 
-## tailwind.config.js 主题扩展位置
+antd 组件用 `ConfigProvider` 覆盖 token：
+
+```jsx
+import { ConfigProvider } from "antd";
+
+<ConfigProvider theme={{
+  token: {
+    colorPrimary: "#1677FF",
+    borderRadius: 8,
+  }
+}}>
+  <App />
+</ConfigProvider>
+```
+
+---
+
+## Vite API 代理配置
+
+编辑 `vite.config.js`：
 
 ```js
-// tailwind.config.js
-export default {
-  content: ['./**/*.html', './js/**/*.js'],
-  theme: {
-    extend: {
-      colors: {
-        // 在这里写入 GATE-2 方案中确定的主题色
-        primary: '#<hex>',
-        secondary: '#<hex>',
-      },
-      fontFamily: {
-        // 在这里写入 GATE-2 方案中确定的字体
-        heading: ['<FontName>', 'sans-serif'],
-        body: ['<FontName>', 'sans-serif'],
-      }
+server: {
+  proxy: {
+    "/api": {
+      target: "http://localhost:3000",
+      changeOrigin: true,
+      rewrite: (path) => path.replace(/^\/api/, "")
     }
   }
 }
 ```
 
-## 文件命名约定
+---
+
+## zustand Store 规范
+
+每个业务模块一个 store 文件，放 `js/store/`：
+
+```js
+// js/store/authStore.js
+import { create } from "zustand";
+
+const useAuthStore = create((set) => ({
+  user: null,
+  token: null,
+  setUser: (user) => set({ user }),
+  setToken: (token) => set({ token }),
+  logout: () => set({ user: null, token: null }),
+}));
+
+export default useAuthStore;
+```
+
+---
+
+## axios 封装规范
+
+```js
+// js/api/request.js
+import axios from "axios";
+
+const request = axios.create({
+  baseURL: "/api",
+  timeout: 10000,
+});
+
+request.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+request.interceptors.response.use(
+  (res) => res.data,
+  (err) => Promise.reject(err)
+);
+
+export default request;
+```
+
+---
+
+## 文件大小限制
+
+- 单文件 > 30K → **禁止一次性读写**
+- 超大文件处理流程：读取 → 总结 → 再读取 → 再总结
+- 组件超过 200 行 → 拆分为子组件
+- store 超过 100 行 → 拆分为多个 store
+
+---
+
+## 图片素材规范
+
+禁止下载图片到本地，使用 CDN URL：
 
 ```
-sections/<区块英文名>.html    ← 每个区块一个文件
-js/<区块英文名>.js            ← 每个区块的交互逻辑
-styles/main.css               ← 只写 @tailwind 指令 + CSS 变量
-docs/design-plan.md           ← GATE-2 方案文档
-docs/qa-report.md             ← GATE-4 自检报告
+Unsplash：https://images.unsplash.com/photo-<id>?w=800&q=80
+Pexels：https://images.pexels.com/photos/<id>/pexels-photo-<id>.jpeg?w=800
 ```
 
-## 禁止项
+在 HTML/JSX 中直接引用：
+```jsx
+<img src="https://images.unsplash.com/photo-xxx?w=800&q=80" alt="描述" />
+```
 
-- 禁止在 index.html 中直接写大段区块 HTML（超过 50 行就应该拆 section）
-- 禁止内联 `style="..."` 属性（用 Tailwind class 或 CSS 变量）
-- 禁止 `<script>` 标签写业务逻辑（放 js/ 目录）
-- 禁止修改 vite.config.js 的构建目标（保持 ES2015+）
+---
+
+## 启动开发服务器
+
+```bash
+cd projects/<project-name>
+npm install
+npm run dev
+# → http://localhost:5173
+```

@@ -1,357 +1,177 @@
----
-name: frontend-page-builder
-description: 前端页面设计与代码落地全流程。用于新建页面、重构页面、落地设计稿。包含六阶段门控 SOP（需求确认→方案输出→开发落地→自检验收→用户预览→发布），强制技术栈约束（Vite+TailwindCSS+JS+HTML），禁止大文件整块读写，上下文超限前必须 HANDOFF。
----
+# webgen — 前端页面生成 Skill
 
-# Frontend Page Builder
-
-## Overview
-
-本 skill 管控前端页面从需求到发布的完整流程。
-
-核心约束三条：
-1. **技术栈锁定**：Vite + TailwindCSS + Vanilla JS + HTML，禁止引入其他框架
-2. **大文件保护**：单文件超过 150 行必须拆分，禁止整块读写
-3. **上下文保护**：新页面开始前强制 /compact，超过 80% 立即 /compact
-
-设计产出由专用 skill 负责，本 skill 负责门控推进与执行纪律。
+> 版本：2.0 | 适用：OpenClaw 平台 | 技术栈：Vite + React + Tailwind + antd + zustand
 
 ---
 
-## Gate 系统
+## 核心约定（最优先，违反即停止执行）
 
-每个阶段是一个 Gate，只有用户明确确认才能进入下一个 Gate。
-
-LLM 在每次响应前必须先判断当前处于哪个 Gate，输出当前 Gate 名称，再继续执行。
-
-```
-GATE-1: 需求确认 & 素材收集  → 用户确认后进入 GATE-2
-GATE-2: 方案输出             → 用户确认后进入 GATE-3
-GATE-3: 开发代码落地         → 完成后进入 GATE-4
-GATE-4: 自检验收             → 通过后进入 GATE-5
-GATE-5: 用户预览             → 用户确认后进入 GATE-6
-GATE-6: 发布                 → 用户确认后执行
-```
+| 禁令 | 原因 |
+|------|------|
+| 禁止跳跃 Gate | Gate 是工程代码强制执行的，不是建议 |
+| 禁止修改技术栈 | 用户要求修改时明确拒绝 |
+| 禁止一次性读写 >30K 文件 | 防止 context 爆炸 |
+| 禁止读取 base64 图片 | 极度消耗 context |
+| 禁止下载图片到本地 | 使用 CDN URL 直接引用 |
+| 禁止在 HANDOFF 前执行 /compact 或 /clear | 防止丢失任务状态 |
+| 禁止代替用户确认 Gate | 用户确认门（G1/G2/G5/G6）必须用户口头确认 |
+| 禁止一次性生成完整大页面 | 按 Block Tree 逐区块生成 |
 
 ---
 
-## GATE-1：需求确认 & 素材收集
+## SOP 执行流程
 
-### 触发
-用户说"新建页面"、"做一个页面"、"设计一个 XX 页面"等。
+### 控制门执行原则（运行时强制）
 
-### 强制执行
-```
-1. 调用 /compact（清理上下文，为新页面腾空间）
-2. 加载 superpowers:brainstorming，明确以下五项：
-   - 页面目标（一句话：这个页面要让用户做什么）
-   - 目标用户（PC / 移动 / 两者）
-   - 核心模块（列举 3-5 个区块名称）
-   - 视觉参考（截图链接、竞品 URL、关键词，至少一项）
-   - 文案素材（是否需要在线搜索）
-3. 图片/文案素材：通过 WebSearch 在线搜索，不伪造
-4. 输出"素材清单"，逐项列出已收集 / 待收集项
-```
+- 每次用户发起操作，先执行：`node scripts/gate.js status <project-path>`
+- `gate.js` 的控制门是脚本强制，不是提示建议；缺少阶段产物、缺少用户确认、缺少 `--compact`、存在 BLOCKER、试图绕过 `publish.js`，都会直接失败
+- 用户确认门只能用用户原话推进，命令格式：`node scripts/gate.js advance <project-path> --confirm "用户确认原话"`
+- 从 `G2_DESIGN` 进入 `G3_DEV` 前，必须先完成 `/compact`，推进时额外带上：`--compact`
+- `G6_PUBLISH` 禁止使用 `gate.js advance` 直达 `DONE`，只能执行：`node scripts/publish.js <project-path> [--dest <dir>]`
 
-### 用户确认输出
-```
-[GATE-1 完成]
-页面目标：<一句话>
-目标平台：<PC/移动/两者>
-核心模块：<列表>
-素材状态：<已收集 N 项，待收集 M 项>
+### 启动时：读取 Gate 状态
 
-→ 确认后进入 GATE-2（方案输出）
-```
+每次用户发起操作，第一步必须执行：
 
----
-
-## GATE-2：方案输出
-
-### 触发
-GATE-1 用户确认后。
-
-### 强制执行
-```
-1. 调用 design-taste-frontend skill：
-   - 输出蓝图（线框布局，文字描述为主）
-   - 输出层级方案（Header / Hero / Section / Footer 等）
-   - 输出配色方向（主色 / 辅色 / 背景色）
-   - 输出字体方案（标题 / 正文 / 强调）
-2. 调用 audit skill：检查方案的移动端适配可行性
-3. 输出"方案文档"，保存到 ./docs/design-plan.md
-4. 方案文档结构：
-   - ## 页面目标
-   - ## 布局骨架（区块顺序 + 每块核心内容）
-   - ## 配色方案（色值 + 用途）
-   - ## 字体方案
-   - ## 交互说明（hover/动效/响应式断点）
-   - ## 技术约束（Vite + TailwindCSS + JS + HTML）
-```
-
-### 禁令
-- 禁止在方案阶段写任何 HTML/JS/CSS 代码
-- 禁止跳过 audit 的适配检查
-
-### 用户确认输出
-```
-[GATE-2 完成]
-方案文档：./docs/design-plan.md
-布局概览：<区块列表>
-配色：<主色值>
-待确认修改项：<有/无>
-
-→ 确认后进入 GATE-3（代码落地）
-```
-
----
-
-## GATE-3：开发代码落地
-
-### 触发
-GATE-2 用户确认后。
-
-### 强制执行
-
-**Step 1：脚手架初始化**
 ```bash
-# 读取 templates/scaffold/ 目录，使用现有脚手架
-# 禁止手动创建 package.json / vite.config.js，使用模板
-cp -r templates/scaffold/ ./<项目目录>/
-cd <项目目录> && npm install
+node scripts/gate.js status <project-path>
 ```
 
-**Step 2：文件拆分规则（强制）**
-```
-每个区块对应一个 HTML 分片文件：
-  sections/
-    hero.html
-    features.html
-    pricing.html
-    footer.html
-    ...
-
-每个区块的 JS 逻辑独立文件：
-  js/
-    hero.js
-    nav.js
-    animation.js
-    ...
-
-主文件只负责组装：
-  index.html        ← 引入 sections/*.html
-  main.js           ← 引入 js/*.js
-  styles/main.css   ← 引入 Tailwind 配置
-
-单文件超过 150 行 → 立即拆分，不等实现完再拆
-```
-
-**Step 3：设计实现工具链**
-```
-区块拆分   → 调用 frontend-design skill
-视觉质量   → 调用 impeccable skill（audit → arrange / typeset / colorize / polish）
-动效判断   → 根据场景选择：
-             简单过渡      → CSS transition
-             序列动画      → Anime.js
-             滚动触发      → Motion
-             复杂时间轴    → GSAP（core → timeline → scrolltrigger）
-             3D场景        → Three.js
-图片素材   → WebSearch 搜索 Unsplash/Pexels 链接，直接用 URL，不下载
-```
-
-**Step 4：开发顺序**
-```
-1. index.html 骨架（只写结构，无样式）
-2. TailwindCSS 配置（主题色、字体变量写入 tailwind.config.js）
-3. 区块逐个实现（每个区块：HTML → Tailwind 样式 → JS 交互）
-4. 响应式适配（mobile-first，断点：sm/md/lg/xl）
-5. 动效层（最后加，不影响布局调试）
-```
-
-### 禁令
-- 禁止修改技术栈（不得引入 React / Vue / Bootstrap / 任何 CSS 框架）
-- 禁止整块读写超过 150 行的文件
-- 禁止把所有区块写在一个 HTML 文件里
-- 禁止内联 style（一律用 Tailwind class 或 CSS 变量）
+根据返回的 `current` 决定下一步行动，不得凭记忆判断。
 
 ---
 
-## GATE-4：自检验收
+### G0_INIT → G1_REQUIREMENTS：项目初始化
 
-### 触发
-GATE-3 代码实现完成后，自动进入。
+**触发**：用户说"新建页面"、"开始一个新项目"
 
-### 强制执行
-```
-1. 调用 audit skill：全页面体检
-2. 调用 impeccable skill：根据 audit 报告逐项修复
-   - 对比度/可读性问题  → colorize
-   - 间距/对齐问题      → arrange
-   - 字体层级问题       → typeset
-   - 视觉打磨           → polish
-   - 动效问题           → animate
-   - 无障碍问题         → harden
-3. 响应式检查（三个断点：375px / 768px / 1280px）
-4. 输出"自检报告"：
-   - 已修复问题列表
-   - 已确认通过项
-   - 遗留已知问题（如有）
-```
+**执行步骤**：
+1. 询问项目名称（如未提供）
+2. 执行初始化：`node scripts/init-project.js <name>`
+3. 打开 `.webgen/requirements.md`，引导用户逐项填写
+4. 填写完成后，**等待用户口头确认**："需求确认完毕，可以进入方案阶段"
+5. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "需求确认完毕，可以进入方案阶段"`
 
-### 通过标准
-以下全部满足才能进入 GATE-5：
-- [ ] 无明显对比度问题
-- [ ] 三个断点布局正常
-- [ ] 无 JS 控制台报错
-- [ ] 图片全部正常加载
-- [ ] 交互反馈正常（hover/click）
+**LLM 检查清单**（推进前逐项核实）：
+- [ ] 页面名称已填写
+- [ ] 业务目标已填写
+- [ ] 核心功能列表不为空
+- [ ] 验收标准已填写
 
 ---
 
-## GATE-5：用户预览
+### G1_REQUIREMENTS → G2_DESIGN：方案输出
 
-### 触发
-GATE-4 自检通过后。
+**进入前强制执行 `/compact`（新页面设计前必须）**
 
-### 强制执行
-```bash
-# 启动本地预览服务
-cd <项目目录> && npm run dev
-# 输出访问地址给用户
+**执行步骤**：
+1. 读取 `.webgen/requirements.md`（分块读取，超 30K 先总结）
+2. 参考 `references/design-skill-guide.md` 的 4 阶段规范
+3. 生成以下内容，写入 `.webgen/design.md`：
+   - Block Tree（区块树）
+   - Design Tokens（颜色/间距/字体）
+   - 布局骨架（响应式断点策略）
+   - 组件清单（antd 组件 + 自定义组件）
+   - 路由设计（react-router-dom）
+   - 状态管理（zustand store 设计）
+   - API 代理配置（vite proxy）
+4. 向用户展示方案摘要，**等待用户口头确认**
+5. 先执行 `/compact`
+6. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "方案确认通过，可以进入开发阶段" --compact`
+
+---
+
+### G2_DESIGN → G3_DEV：代码落地
+
+**执行步骤**：
+1. 读取 `.webgen/design.md` 的 Block Tree 和组件清单
+2. 按以下顺序逐步落地（每步完成才进行下一步）：
+   - a. 基础结构：`js/App.jsx` + `js/router.jsx`
+   - b. 状态管理：`js/store/*.js`
+   - c. API 层：`js/api/*.js`
+   - d. 逐个区块：`sections/*.jsx`（从上到下）
+   - e. 复用组件：`js/components/*.jsx`
+3. 每个文件生成后检查文件大小，>30K 立即拆分
+4. 所有文件生成完成，更新 `vite.config.js` 的 proxy 配置
+5. 推进：`node scripts/gate.js advance <project-path>`
+
+**大文件处理协议**：
 ```
-
-### 输出格式
-```
-[GATE-4 自检通过]
-[GATE-5 预览就绪]
-
-本地预览：http://localhost:5173
-自检报告：./docs/qa-report.md
-
-已修复：<N 项>
-遗留问题：<有/无>
-
-→ 预览确认无误后，告知"确认发布"进入 GATE-6
+如果需要读取已有大文件：
+  1. 读取文件前 100 行 → 总结结构
+  2. 读取中间部分 → 总结逻辑
+  3. 读取末尾部分 → 确认完整性
+  4. 基于总结执行修改，不保留原文
 ```
 
 ---
 
-## GATE-6：发布
+### G3_DEV → G4_AUDIT：自检验收
 
-### 触发
-用户说"确认发布"、"发布"、"上线"。
+**执行步骤**：
+1. 逐项执行 `references/design-skill-guide.md` 的 Audit 清单
+2. 将结果写入 `.webgen/audit.md`
+3. 如有 BLOCKER：
+   - `node scripts/gate.js block <project-path> "<问题描述>"`
+   - 修复后：`node scripts/gate.js unblock <project-path>`
+4. 无 BLOCKER 后推进：`node scripts/gate.js advance <project-path>`
 
-### 强制执行
-```bash
-# 构建产物
-cd <项目目录> && npm run build
+---
 
-# 输出构建结果
-ls -la dist/
+### G4_AUDIT → G5_PREVIEW：用户预览
 
-# 可选：部署到静态托管（用户指定平台）
-# Vercel:  vercel --prod
-# Netlify: netlify deploy --prod --dir=dist
-# GitHub Pages: 参考 scripts/deploy-gh-pages.sh
+**执行步骤**：
+1. 告知用户启动开发服务器：
+   ```bash
+   cd <project-path> && npm install && npm run dev
+   # → http://localhost:5173
+   ```
+2. **等待用户在浏览器预览并口头确认**："预览通过，可以发布"
+3. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "预览通过，可以发布"`
+
+---
+
+### G5_PREVIEW → G6_PUBLISH → DONE：发布
+
+**执行步骤**：
+1. 向用户确认发布目标目录（如有）
+2. **等待用户口头确认发布**
+3. 执行：`node scripts/publish.js <project-path> [--dest <dir>]`
+4. `publish.js` 构建成功后自动推进 Gate 到 DONE
+5. 告知用户构建产物路径
+
+---
+
+## context 容量管控
+
+| 阈值 | 动作 |
+|------|------|
+| 80% | 中断当前操作，先执行 /compact |
+| 进入 G3_DEV 前 | 强制执行 /compact |
+
+**/compact 前必须执行 HANDOFF 协议**（见全局规则）
+
+---
+
+## 多页面项目管理
+
+每个页面/子项目独立 `.webgen/`，互不干扰：
+
 ```
-
-### 发布前最终确认
-```
-[GATE-6 发布确认]
-构建产物：./dist/
-构建大小：<X KB>
-部署目标：<平台名或"本地">
-
-→ 确认后执行部署
+projects/
+  landing-page/
+    .webgen/gate.json   # 独立 Gate 状态
+  dashboard/
+    .webgen/gate.json   # 独立 Gate 状态
+  login/
+    .webgen/gate.json   # 独立 Gate 状态
 ```
 
 ---
 
-## 上下文保护规则
+## 参考文档索引
 
-| 触发条件 | 动作 |
-|---|---|
-| 新页面开始（GATE-1 前） | 强制 /compact |
-| 上下文超过 80% | 强制 /compact，完成后继续当前 Gate |
-| 执行 /compact 或 /clear 前 | 强制输出 HANDOFF 块 |
-| 从 /clear 后恢复 | 从 HANDOFF 块中读取 GATE 状态，继续执行 |
-
-### HANDOFF 块格式
-```
-[CONTEXT_SAVE]
-[TASK]  <当前页面名称>，处于 GATE-<N>：<Gate 名称>
-[DONE]  <已完成文件列表，格式：路径 - 做了什么>
-[BLOCK] <最多 3 条阻塞，格式：问题 - 原因>
-[NEXT]  <下一步具体操作，精确到命令或函数名>
-[REF]   <关键值：端口号、颜色变量名、API 路径等>
-[GATE]  当前 Gate: <N>，下一 Gate: <N+1>，等待：<用户确认/自动>
-```
-
----
-
-## 大文件读写规则
-
-```
-文件行数     处理方式
-< 80 行      直接读写
-80-150 行    读前先看结构（函数签名），按需展开
-> 150 行     禁止整块操作，必须按区块拆分后逐个处理
-```
-
-拆分触发时机：实现过程中发现单文件超过 150 行，立即暂停，先拆分再继续。
-
----
-
-## 技术栈约束（不可修改）
-
-```
-构建工具：Vite（使用 templates/scaffold/ 中的模板）
-样式框架：TailwindCSS（mobile-first，配置写入 tailwind.config.js）
-脚本：Vanilla JS（ES Module，禁止 jQuery / lodash 等工具库）
-标记：HTML5 语义化标签
-图片：在线 URL（Unsplash/Pexels），禁止 base64 内嵌大图
-字体：Google Fonts CDN 引入，最多 2 个字族
-图标：Lucide（CDN 引入），禁止 @ant-design/icons
-```
-
-禁止引入：React / Vue / Angular / Bootstrap / Foundation / jQuery / 任何 UI 组件库。
-
----
-
-## 设计 Skill 调用映射
-
-| 阶段 | 使用 Skill | 作用 |
-|---|---|---|
-| GATE-2 方案 | design-taste-frontend | 蓝图、布局骨架、配色、字体 |
-| GATE-2 方案 | audit | 适配可行性检查 |
-| GATE-3 区块 | frontend-design | 区块拆分 + 真实前端代码 |
-| GATE-3 动效 | anime.js / motion / gsap-* / three.js | 按场景选择 |
-| GATE-4 自检 | audit + impeccable | 体检 + 专项修复 |
-| 风格沉淀 | teach-impeccable | 把稳定风格写入长期约束 |
-
----
-
-## 处罚规则（LLM 自我约束）
-
-以下行为视为违规，发生后必须回滚并说明原因：
-
-1. **跳过用户确认直接进入下一 Gate** — 回滚到当前 Gate，重新等待确认
-2. **整块读写超过 150 行的文件** — 停止，先拆分，再继续
-3. **引入禁止技术栈** — 停止，移除依赖，改用约定技术栈
-4. **上下文超 80% 不 compact** — 立即输出 HANDOFF，执行 /compact
-5. **伪造图片/文案素材** — 停止，改用 WebSearch 在线搜索真实素材
-6. **在方案阶段写代码** — 停止，删除代码，回到方案文档输出格式
-
----
-
-## 快速参考：Gate 推进口令
-
-```
-用户说                    LLM 动作
-"做一个页面/新建页面"   → 强制 /compact + 进入 GATE-1
-"确认需求"              → 输出 GATE-1 完成块，等待确认信号进入 GATE-2
-"确认方案"              → 输出 GATE-2 完成块，进入 GATE-3
-"代码完成"（自动触发）  → 进入 GATE-4 自检
-"自检通过"（自动触发）  → 启动预览，进入 GATE-5
-"确认发布"              → 进入 GATE-6 执行构建+部署
-```
+- Gate 状态机详细规范：`references/gate-fsm.md`
+- 页面设计 4 阶段规范：`references/design-skill-guide.md`
+- 技术栈 scaffold 使用：`references/scaffold-setup.md`
+- 全局配置变量：`config.js`

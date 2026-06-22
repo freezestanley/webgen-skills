@@ -1,24 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Page Title</title>
-  <!-- Google Fonts - GATE-2 方案确定后替换 -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <link rel="stylesheet" href="/styles/main.css" />
-</head>
-<body class="font-body bg-white text-gray-900 antialiased">
-
-  <!-- 各区块通过 JS 动态插入，或直接在此引入 section 文件 -->
-  <!-- GATE-3 开发时逐个添加区块 -->
-
-  <script type="module" src="/main.js"></script>
-  <script>
-    lucide.createIcons();
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebGen Project</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>

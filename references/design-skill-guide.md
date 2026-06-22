@@ -1,101 +1,163 @@
-# 设计 Skill 调用指南
+# 页面设计规范（4 阶段）
 
-## 哪个 Gate 用哪个 Skill
+> 仅在 Gate = G2_DESIGN 阶段执行，产出写入 .webgen/design.md
 
-### GATE-2：方案阶段
+---
 
-**design-taste-frontend**
+## 阶段 1：定义与意图（design-taste-frontend）
+
+**触发时机**：收到用户确认的 requirements.md 后
+
+**产出物**：
+1. **Block Tree（区块树）**：页面语义区块的层级结构，用缩进表示父子关系
+2. **Design Tokens（设计变量）**：颜色系统、间距规律、字体规范
+
+### Block Tree 格式示例
+
 ```
-作用：输出初始蓝图、布局骨架、层级方案
-调用时机：GATE-2 开始时，第一个调用
-输出：布局骨架（文字描述）+ 配色方向 + 字体方向
+Page: 用户登录页
+  ├── Header（顶部导航）
+  │   ├── Logo
+  │   └── 返回首页链接
+  ├── Hero（主视觉区）
+  │   ├── 插图
+  │   └── 标语文案
+  ├── FormSection（表单区）
+  │   ├── 标题
+  │   ├── 邮箱输入
+  │   ├── 密码输入
+  │   ├── 记住我 + 忘记密码
+  │   └── 登录按钮
+  └── Footer（底部）
+      └── 注册引导文案
 ```
 
-**audit（方案适配检查）**
-```
-作用：检查方案的移动端适配可行性
-调用时机：design-taste-frontend 输出后
-输出：适配风险清单
+### Design Tokens 格式示例
+
+```yaml
+colors:
+  primary: "#1677FF"       # antd blue-6
+  bg: "#F5F7FA"
+  text-main: "#1A1A1A"
+  text-sub: "#8C8C8C"
+
+spacing:
+  section-gap: "48px"
+  form-gap: "16px"
+
+typography:
+  heading: "24px / 700"
+  body: "14px / 400"
+  caption: "12px / 400"
 ```
 
-### GATE-3：开发阶段
+---
 
-**frontend-design**
+## 阶段 2：结构落地（Frontend-Design）
+
+**触发时机**：Block Tree 和 Design Tokens 确认后
+
+**执行规则**：
+- 按 Block Tree 逐个区块生成 React 组件
+- 组件文件放 `sections/`（页面级）或 `js/components/`（复用级）
+- 单文件不超过 30K，超出拆分
+- 样式优先用 Tailwind utility class，抽象 antd 组件变体
+
+**文件命名规范**：
 ```
-作用：区块拆分 + 真实前端页面代码
-调用时机：每个区块实现前
-输入：该区块的方案描述（来自 design-plan.md）
-输出：该区块的 HTML + TailwindCSS class
+sections/
+  HeroSection.jsx
+  FormSection.jsx
+  HeaderSection.jsx
+js/
+  components/
+    LoginForm.jsx
+    Logo.jsx
+  store/
+    authStore.js
+  api/
+    authApi.js
+  App.jsx
+  router.jsx
 ```
 
-### 动效选择矩阵
+---
+
+## 阶段 3：全面体检（Audit）
+
+**触发时机**：代码落地完成（G4_AUDIT），产出写入 .webgen/audit.md
+
+### 适配体检清单
+
+```
+响应式断点：
+  [ ] sm (640px)：移动端排版正确
+  [ ] md (768px)：平板布局
+  [ ] lg (1024px)：桌面默认
+  [ ] xl (1280px)：宽屏适配
+
+移动端手势：
+  [ ] 触摸滚动顺畅
+  [ ] 无双击缩放问题（viewport meta 已设置）
+
+弹性盒健壮性：
+  [ ] 长文本不溢出（使用 truncate / break-words）
+  [ ] 图片有 aspect-ratio 保护
+  [ ] 列表 Empty 状态有占位
+```
+
+### 动画选型规则
 
 | 场景 | 选择 | 原因 |
-|---|---|---|
-| 简单 hover / 淡入淡出 | CSS transition | 零依赖，够用 |
-| 元素序列入场动画 | Anime.js | 轻量，API 简洁 |
-| 滚动触发动画 | Motion | ScrollTimeline 原生，轻量 |
-| 复杂多步时间轴 | GSAP core + timeline | 精确控制 |
-| 滚动驱动复杂动画 | GSAP + ScrollTrigger | 配合 timeline |
-| React 集成动画 | GSAP React | 生命周期安全 |
-| 性能优化需要 | GSAP performance | GPU 合成层 |
-| 3D 场景 / WebGL | Three.js | 唯一选择 |
+|------|------|------|
+| 简单 hover/transition | Tailwind transition | 零依赖 |
+| 组件进出场动画 | framer-motion（按需引入） | 轻量，声明式 |
+| 复杂时间轴动画 | GSAP | 精确控制 |
+| 3D 场景 | Three.js | 专用 |
 
-GSAP 使用顺序：core → timeline/scrolltrigger → react → performance
-**禁止**跳过 core 直接用 ScrollTrigger。
+**默认选 Tailwind transition，不引入额外动画库，除非需求明确要求**
 
-### GATE-4：自检阶段
+---
 
-**audit（全页面体检）**
-```
-调用时机：GATE-4 开始，先于 impeccable
-输出：分类问题清单（对比度/间距/字体/适配/无障碍）
-```
+## 阶段 4：专项精雕（Impeccable）
 
-**impeccable（专项修复）**
-```
-根据 audit 报告选择子工具：
-- 对比度/颜色问题   → colorize
-- 间距/对齐问题     → arrange
-- 字体层级问题      → typeset
-- 视觉打磨/细节     → polish
-- 动效问题          → animate
-- 无障碍/语义化     → harden
-```
+**触发时机**：Audit 发现问题后，针对性修复
 
-### 风格沉淀
+### 工具箱
 
-**teach-impeccable**
-```
-调用时机：GATE-5 用户确认风格满意后
-作用：把本次页面确定的风格约束写入长期记忆
-场景：同一项目第 2 个以上的页面开始前先读取
-```
+| 工具 | 作用 | 触发条件 |
+|------|------|----------|
+| arrange | 修复布局错位 | Audit 发现 flex/grid 问题 |
+| typeset | 修复排版 | 字号/行高/截断问题 |
+| colorize | 修复颜色 | 对比度不足，颜色不一致 |
+| polish | 视觉细节提升 | 整体通过但视觉粗糙 |
+| harden | 边缘防御 | 空状态/长文本/Loading 缺失 |
 
-## Lucide 图标引入方式
+### harden 必做项
 
-```html
-<!-- CDN 引入 Lucide（禁止 @ant-design/icons） -->
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+```jsx
+// 1. 空数据状态
+{list.length === 0 && <Empty description="暂无数据" />}
 
-<!-- 使用 -->
-<i data-lucide="arrow-right"></i>
+// 2. Loading 骨架屏
+{loading ? <Skeleton active /> : <Content />}
 
-<script>
-  lucide.createIcons();
-</script>
+// 3. 长文本截断
+<p className="truncate max-w-xs">{text}</p>
+
+// 4. 图片加载失败
+<img src={src} onError={(e) => e.target.src = fallbackImg} />
 ```
 
-## 在线图片素材
+---
+
+## 知识沉淀规则
+
+每次满意的方案完成后，提炼到 `.webgen/docs/` 下的专项文档：
 
 ```
-搜索渠道：
-- Unsplash：https://unsplash.com/s/photos/<keyword>
-- Pexels：https://www.pexels.com/search/<keyword>
-- 直接在 HTML 中使用 CDN URL，不下载本地
-```
-
-WebSearch 搜索示例：
-```
-site:unsplash.com <关键词> photo
+docs/
+  layout-patterns.md     # 本项目使用的布局模式
+  component-variants.md  # antd 组件定制配置
+  token-decisions.md     # Design Token 决策记录
 ```

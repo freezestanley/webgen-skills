@@ -1,58 +1,88 @@
-# Gate 状态机参考
+# Gate FSM 状态机规范
 
-LLM 在每次响应前执行以下判断逻辑：
-
-## 当前 Gate 识别规则
+## Gate 顺序（严禁跳跃）
 
 ```
-输入信号                              当前 Gate    动作
-─────────────────────────────────────────────────────────
-"新建页面" / "做一个XX页面"           → GATE-0     /compact + 进入 GATE-1
-处于 GATE-1，用户说"确认"             → GATE-1     输出完成块，等待进入 GATE-2
-处于 GATE-2，用户说"确认方案"         → GATE-2     输出完成块，进入 GATE-3
-处于 GATE-3，所有区块实现完毕         → GATE-3     自动进入 GATE-4
-处于 GATE-4，自检清单全部通过         → GATE-4     启动预览，进入 GATE-5
-处于 GATE-5，用户说"确认发布"         → GATE-5     进入 GATE-6
-处于 GATE-6，构建+部署完成           → GATE-6     输出发布报告，流程结束
+G0_INIT → G1_REQUIREMENTS → G2_DESIGN → G3_DEV → G4_AUDIT → G5_PREVIEW → G6_PUBLISH → DONE
 ```
 
-## 强制前置检查（每个 Gate 开始前）
+## 各 Gate 定义
+
+| Gate | 名称 | 退出条件 | 需要用户确认 |
+|------|------|----------|------------|
+| G0_INIT | 项目初始化 | .webgen/ 创建完成 | 否 |
+| G1_REQUIREMENTS | 需求确认 | requirements.md 完整填写，用户口头确认 | **是** |
+| G2_DESIGN | 方案输出 | design.md 完整输出，用户确认 | **是** |
+| G3_DEV | 代码落地 | 功能代码可运行，无语法错误 | 否 |
+| G4_AUDIT | 自检验收 | audit.md 填写完成，无 BLOCKER | 否 |
+| G5_PREVIEW | 用户预览 | 用户在浏览器确认 OK | **是** |
+| G6_PUBLISH | 发布 | publish.js 执行成功 | **是** |
+| DONE | 完成 | — | — |
+
+## 强制规则
+
+1. **禁止跳跃**：每次只能推进一个 Gate，`advance` 命令由工程代码控制
+2. **阻塞优先**：任何阶段出现 BLOCKER，立即执行 `gate.js block`，解决后再 `unblock`
+3. **用户确认门**：G1/G2/G5/G6 必须有用户的明确口头确认，LLM 不得代替用户确认；推进命令必须携带 `--confirm "用户原话"`
+4. **强制 compact**：从 G2_DESIGN 进入 G3_DEV 前必须先执行 `/compact`，推进命令必须额外携带 `--compact`
+5. **发布独占**：G6_PUBLISH 禁止执行 `gate.js advance`，只能运行 `publish.js` 推进到 DONE
+
+## Gate 状态文件格式（.webgen/gate.json）
+
+```json
+{
+  "project": "my-page",
+  "current": "G2_DESIGN",
+  "blocked": false,
+  "blockReason": null,
+  "history": [
+    { "from": "G0_INIT", "to": "G1_REQUIREMENTS", "at": "2026-06-22T10:00:00Z" },
+    { "from": "G1_REQUIREMENTS", "to": "G2_DESIGN", "at": "2026-06-22T10:30:00Z" }
+  ],
+  "createdAt": "2026-06-22T09:00:00Z",
+  "updatedAt": "2026-06-22T10:30:00Z"
+}
+```
+
+## 常用命令
+
+```bash
+# 查看当前状态
+node scripts/gate.js status ./projects/my-page
+
+# 推进到 G2（需求阶段完成后）
+node scripts/gate.js advance ./projects/my-page --confirm "需求确认完毕，可以进入方案阶段"
+
+# 推进到 G3（设计阶段完成后，先 compact）
+node scripts/gate.js advance ./projects/my-page --confirm "方案确认通过，可以进入开发阶段" --compact
+
+# 推进到 G6（预览通过后）
+node scripts/gate.js advance ./projects/my-page --confirm "预览通过，可以发布"
+
+# 记录阻塞
+node scripts/gate.js block ./projects/my-page "audit.md 发现响应式布局 BLOCKER"
+
+# 解除阻塞
+node scripts/gate.js unblock ./projects/my-page
+
+# 发布（仅 G6_PUBLISH 可执行，禁止 gate.js advance）
+node scripts/publish.js ./projects/my-page --dest /var/www/html
+```
+
+## LLM 判断当前 Gate 的方式
+
+每次用户发起操作时，LLM 必须先读取 `.webgen/gate.json`，判断当前所处阶段，再决定执行什么操作。判断逻辑：
 
 ```
-1. 上下文使用率 > 80%？
-   是 → 输出 HANDOFF 块 → 执行 /compact → 从 HANDOFF 恢复 → 继续
-   否 → 直接继续
-
-2. 进入 GATE-1（新页面）？
-   是 → 无论上下文使用率，强制 /compact
-
-3. 即将读取文件？
-   检查文件行数：
-   > 150 行 → 拆分后再读，不整块操作
-   ≤ 150 行 → 正常操作
+读取 gate.json
+  → blocked=true？→ 停止，告知用户解决阻塞
+  → current=?
+      G0: 引导用户填写 requirements.md
+      G1: 确认需求完整 → 等待用户口头确认 → advance --confirm
+      G2: 生成 design.md → 等待用户口头确认 → 先 compact → advance --confirm --compact
+      G3: 代码落地 → 完成后 advance
+      G4: 填写 audit.md → 无 BLOCKER 后 advance
+      G5: 启动 dev server → 等待用户预览确认 → advance --confirm
+      G6: 执行 publish.js
+      DONE: 告知用户项目已发布
 ```
-
-## HANDOFF 恢复流程
-
-用户在新会话中粘贴 HANDOFF 块后：
-
-```
-1. 解析 [GATE] 字段，确定当前 Gate 编号
-2. 解析 [DONE] 字段，了解已完成文件
-3. 解析 [BLOCK] 字段，确认是否有阻塞需处理
-4. 解析 [NEXT] 字段，直接执行下一步
-5. 不重复已完成的工作
-```
-
-## 违规检测
-
-LLM 在每次即将执行操作前，检查：
-
-| 检测项 | 违规条件 | 处理 |
-|---|---|---|
-| Gate 跳跃 | 未等用户确认就进入下一 Gate | 回滚，重新等待 |
-| 大文件 | 文件 > 150 行整块操作 | 停止，先拆分 |
-| 技术栈 | 引入 React/Vue/Bootstrap 等 | 停止，移除，改用约定栈 |
-| 伪造素材 | 自造图片 URL 或文案 | 停止，WebSearch 搜索真实素材 |
-| 上下文超限 | > 80% 未 compact | 立即 HANDOFF + compact |
-| 方案写代码 | GATE-2 阶段出现 HTML/JS | 停止，删除代码 |
