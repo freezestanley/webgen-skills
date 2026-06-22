@@ -76,6 +76,7 @@ node scripts/gate.js status <project-path>
 **进入前强制执行 `/compact`（新页面设计前必须）**
 
 **执行步骤**：
+0. 执行`/impeccable init`
 1. 读取 `.webgen/requirements.md`（分块读取，超 30K 先总结）
 2. 参考 `references/design-skill-guide.md` 的 4 阶段规范
 3. 生成以下内容，写入 `.webgen/design.md`：
@@ -89,6 +90,7 @@ node scripts/gate.js status <project-path>
 4. 向用户展示方案摘要，**等待用户口头确认**
 5. 先执行 `/compact`
 6. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "方案确认通过，可以进入开发阶段" --compact`
+7. 
 
 ---
 
@@ -193,8 +195,7 @@ projects/
 
 安装依赖技能,如解析失败请手动安装
 - `npx skills add https://github.com/greensock/gsap-skills`
-- `npx impeccable install && /impeccable init`
+- `npx impeccable install`
 - `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`
 - `npx skills add anthropics/skills --skill frontend-design`
 - `npx skills add ofershap/tailwind-best-practices`
-- `npx skills add emilkowalski/skills --skill review-animations`
