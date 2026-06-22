@@ -1,0 +1,9 @@
+{
+  "name": "frontend-page-builder",
+  "version": "1.0.0",
+  "description": "前端页面设计与代码落地全流程 SOP。覆盖需求确认、方案输出、开发实现、自检验收、用户预览、发布六个门控阶段，强制大文件拆分、上下文保护与技术栈约束。",
+  "author": {
+    "name": "xx",
+    "email": "xx@qq.com"
+  }
+}

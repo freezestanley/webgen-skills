@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS 变量 - GATE-2 方案确定后填入 */
+:root {
+  --color-primary: #3B82F6;
+  --color-secondary: #10B981;
+  --font-heading: 'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+/* 全局基础重置 */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+}
