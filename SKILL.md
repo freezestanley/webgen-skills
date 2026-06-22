@@ -188,6 +188,7 @@ projects/
 - 技术栈 scaffold 使用：`references/scaffold-setup.md`
 - 全局配置变量：`config.js`
 
+
 ## 安装前置条件：
 
 安装依赖技能,如解析失败请手动安装
