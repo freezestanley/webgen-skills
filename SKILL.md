@@ -195,6 +195,6 @@ projects/
 - `npx skills add https://github.com/greensock/gsap-skills`
 - `npx impeccable install && /impeccable init`
 - `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`
-- `https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md`
+- `npx skills add anthropics/skills --skill frontend-design`
 - `npx skills add ofershap/tailwind-best-practices`
 - `npx skills add emilkowalski/skills --skill review-animations`
