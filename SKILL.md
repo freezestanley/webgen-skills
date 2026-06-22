@@ -1,6 +1,12 @@
 ---
 name: webgen
 description: 前端页面从需求到发布的完整 SOP skill，含 Gate 状态机强制管控。用于生成基于 Vite + React + Tailwind + antd + zustand 的前端页面项目。
+depends_on:
+  - greensock/gsap-skills
+  - Leonxlnx/taste-skill
+  - anthropics/skills
+  - ofershap/tailwind-best-practices
+  - emilkowalski/skills
 ---
 
 # webgen — 前端页面生成 Skill
@@ -181,3 +187,13 @@ projects/
 - 页面设计 4 阶段规范：`references/design-skill-guide.md`
 - 技术栈 scaffold 使用：`references/scaffold-setup.md`
 - 全局配置变量：`config.js`
+
+## 安装前置条件：
+
+安装依赖技能,如解析失败请手动安装
+- `npx skills add https://github.com/greensock/gsap-skills`
+- `npx impeccable install && /impeccable init`
+- `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`
+- `https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md`
+- `npx skills add ofershap/tailwind-best-practices`
+- `npx skills add emilkowalski/skills --skill review-animations`

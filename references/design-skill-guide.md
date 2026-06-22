@@ -53,7 +53,7 @@ typography:
 
 ---
 
-## 阶段 2：结构落地（Frontend-Design）
+## 阶段 2：结构落地（frontend-design）
 
 **触发时机**：Block Tree 和 Design Tokens 确认后
 
