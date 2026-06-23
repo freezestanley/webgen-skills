@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
  * Gate FSM 状态机
- * 强制管控 webgen SOP 的每个阶段，禁止跳跃执行
+ * 强制管控 webgen SOP 的每个阶段,禁止跳跃执行
  *
- * Gate 顺序（不可逆跳跃）：
+ * Gate 顺序（不可逆跳跃）:
  *   G0_INIT → G1_REQUIREMENTS → G2_DESIGN → G3_DEV → G4_AUDIT → G5_PREVIEW → G6_PUBLISH → DONE
  *
- * 用法：
+ * 用法:
  *   node scripts/gate.js status <project-path>         # 查看当前 gate
  *   node scripts/gate.js advance <project-path>        # 推进到下一 gate（需用户确认已完成当前阶段）
  *   node scripts/gate.js block <project-path> <reason> # 阻塞当前 gate（记录阻塞原因）
@@ -39,23 +39,23 @@ const USER_CONFIRM_GATES = new Set([
 
 // 各 Gate 的准入前提（进入前必须满足）
 const GATE_PRECONDITIONS = {
-  G1_REQUIREMENTS: ["项目已初始化，.webgen/ 目录存在"],
+  G1_REQUIREMENTS: ["项目已初始化,.webgen/ 目录存在"],
   G2_DESIGN: ["requirements.md 已填写并用户确认"],
   G3_DEV: ["design.md 已输出并用户确认", "compact 已执行（新页面设计前强制）"],
-  G4_AUDIT: ["代码已落地，主要功能可运行"],
-  G5_PREVIEW: ["audit.md 自检完成，无 BLOCKER 级问题"],
+  G4_AUDIT: ["代码已落地,主要功能可运行"],
+  G5_PREVIEW: ["audit.md 自检完成,无 BLOCKER 级问题"],
   G6_PUBLISH: ["用户预览确认通过"],
   DONE: ["发布脚本执行成功"]
 };
 
 const ADVANCE_REQUIREMENTS = {
-  G0_INIT: ["项目已初始化，允许进入需求确认阶段"],
+  G0_INIT: ["项目已初始化,允许进入需求确认阶段"],
   G1_REQUIREMENTS: ["requirements.md 关键字段已填写", "必须附带 --confirm 记录用户确认"],
   G2_DESIGN: ["design.md 关键章节已输出", "必须附带 --confirm", "必须附带 --compact"],
-  G3_DEV: ["代码已落地，允许进入自检阶段"],
+  G3_DEV: ["代码已落地,允许进入自检阶段"],
   G4_AUDIT: ["audit.md 结论必须为 PASS", "BLOCKER 问题列表必须为无"],
   G5_PREVIEW: ["必须附带 --confirm 记录用户预览确认"],
-  G6_PUBLISH: ["禁止直接 advance，必须运行 publish.js"]
+  G6_PUBLISH: ["禁止直接 advance,必须运行 publish.js"]
 };
 
 function fail(message, details) {
@@ -68,7 +68,7 @@ function fail(message, details) {
 
 function readTextFile(filePath, label) {
   if (!fs.existsSync(filePath)) {
-    fail(`${label} 不存在`, `缺少文件：${filePath}`);
+    fail(`${label} 不存在`, `缺少文件:${filePath}`);
   }
 
   return fs.readFileSync(filePath, "utf-8");
@@ -119,7 +119,7 @@ function getSectionLines(sections, namePrefix) {
 function assertRequiredSections(fileLabel, sections, names) {
   const missing = names.filter((name) => getSectionLines(sections, name).length === 0);
   if (missing.length > 0) {
-    fail(`${fileLabel} 未完成，禁止推进`, `缺少有效内容的章节：${missing.join("、")}`);
+    fail(`${fileLabel} 未完成,禁止推进`, `缺少有效内容的章节:${missing.join("、")}`);
   }
 }
 
@@ -157,20 +157,48 @@ function validateDesign(projectPath) {
 
 function validateAudit(projectPath) {
   const filePath = path.join(projectPath, config.WEBGEN_DIR, config.AUDIT_FILE);
-  const sections = parseSections(readTextFile(filePath, "audit.md"));
+  const txt = readTextFile(filePath, "audit.md");
+  const sections = parseSections(txt);
+
+  // 1. 运行时验证章节必须存在
+  if (!txt.includes("## 运行时验证")) {
+    fail(
+      "audit.md 缺少「运行时验证」章节,禁止推进",
+      "必须先用 MCP chrome-devtools 执行运行时检查（navigate_page + list_console_messages）,再写入结论"
+    );
+  }
+
+  // 2. console.error 必须为 0
+  const runtimeSection = txt.split("## 运行时验证")[1] || "";
+  if (!/console\.error 数量:\s*0/.test(runtimeSection)) {
+    fail(
+      "运行时验证未通过:console.error 不为 0,禁止推进",
+      "请修复所有 console.error 后重新执行运行时验证"
+    );
+  }
+
+  // 3. 运行时结论必须是 PASS
+  if (!/结论:\s*PASS/.test(runtimeSection)) {
+    fail(
+      "运行时验证结论不是 PASS,禁止推进",
+      "请确认截图无白屏、console.error 为 0,再将结论改为 PASS"
+    );
+  }
+
+  // 4. 静态 audit 不得有 P0/P1
   const blockers = getSectionLines(sections, "BLOCKER 问题列表").join(" ").trim();
   const conclusion = getSectionLines(sections, "结论").join(" ").trim();
 
   if (!blockers) {
-    fail("audit.md 缺少 BLOCKER 结论", "请明确填写 BLOCKER 问题列表，无问题时填写“无”");
+    fail("audit.md 缺少 BLOCKER 结论", "请明确填写 BLOCKER 问题列表,无问题时填写'无'");
   }
 
   if (!/^(无|none|n\/a|no blocker|no blockers)$/i.test(blockers)) {
-    fail("audit.md 仍存在 BLOCKER，禁止推进", `当前 BLOCKER：${blockers}`);
+    fail("audit.md 仍存在 BLOCKER,禁止推进", `当前 BLOCKER:${blockers}`);
   }
 
   if (!/\bPASS\b/i.test(conclusion)) {
-    fail("audit.md 结论不是 PASS，禁止推进", `当前结论：${conclusion || "未填写"}`);
+    fail("audit.md 结论不是 PASS,禁止推进", `当前结论:${conclusion || "未填写"}`);
   }
 }
 
@@ -250,7 +278,7 @@ function writeGate(projectPath, state) {
 function status(projectPath) {
   const state = readGate(projectPath);
   if (!state) {
-    fail(`项目未初始化：${projectPath}`, "请先运行: node scripts/init-project.js <project-path>");
+    fail(`项目未初始化:${projectPath}`, "请先运行: node scripts/init-project.js <project-path>");
   }
   const idx = GATES.indexOf(state.current);
   const next = GATES[idx + 1] || "DONE";
@@ -264,11 +292,11 @@ function status(projectPath) {
   console.log(`上次更新 : ${state.updatedAt}`);
 
   if (ADVANCE_REQUIREMENTS[state.current]) {
-    console.log(`\n当前阶段推进要求：`);
+    console.log(`\n当前阶段推进要求:`);
     ADVANCE_REQUIREMENTS[state.current].forEach((item) => console.log(`  - ${item}`));
   }
   if (GATE_PRECONDITIONS[next]) {
-    console.log(`\n下一阶段准入前提：`);
+    console.log(`\n下一阶段准入前提:`);
     GATE_PRECONDITIONS[next].forEach((item) => console.log(`  - ${item}`));
   }
   return state;
@@ -280,12 +308,12 @@ function advance(projectPath, options) {
     fail("项目未初始化");
   }
   if (state.blocked) {
-    fail(`当前 Gate 被阻塞，无法推进。原因：${state.blockReason}`, "请先解决阻塞问题，再运行: node scripts/gate.js unblock <project-path>");
+    fail(`当前 Gate 被阻塞,无法推进。原因:${state.blockReason}`, "请先解决阻塞问题,再运行: node scripts/gate.js unblock <project-path>");
   }
 
   const idx = GATES.indexOf(state.current);
   if (idx === -1 || idx >= GATES.length - 1) {
-    console.log("[GATE] 已到达终态 DONE，无法继续推进");
+    console.log("[GATE] 已到达终态 DONE,无法继续推进");
     process.exit(0);
   }
 
@@ -308,9 +336,9 @@ function advance(projectPath, options) {
   state.current = next;
   writeGate(projectPath, state);
 
-  console.log(`[GATE] 推进成功：${state.history[state.history.length - 1].from} → ${next}`);
+  console.log(`[GATE] 推进成功:${state.history[state.history.length - 1].from} → ${next}`);
   if (GATE_PRECONDITIONS[next]) {
-    console.log(`\n[GATE] 进入 ${next} 的前提条件：`);
+    console.log(`\n[GATE] 进入 ${next} 的前提条件:`);
     GATE_PRECONDITIONS[next].forEach(c => console.log(`  - ${c}`));
   }
 }
@@ -323,7 +351,7 @@ function block(projectPath, reason) {
   state.blocked = true;
   state.blockReason = reason || "未说明原因";
   writeGate(projectPath, state);
-  console.log(`[GATE] 已阻塞 ${state.current}，原因：${state.blockReason}`);
+  console.log(`[GATE] 已阻塞 ${state.current},原因:${state.blockReason}`);
 }
 
 function unblock(projectPath) {
@@ -334,7 +362,7 @@ function unblock(projectPath) {
   state.blocked = false;
   state.blockReason = null;
   writeGate(projectPath, state);
-  console.log(`[GATE] 已解除阻塞，当前 Gate：${state.current}`);
+  console.log(`[GATE] 已解除阻塞,当前 Gate:${state.current}`);
 }
 
 function reset(projectPath) {
@@ -360,7 +388,7 @@ function reset(projectPath) {
 const { cmd, projectPath, args, options } = parseCli(process.argv.slice(2));
 
 if (!cmd || !projectPath) {
-  console.log("用法：");
+  console.log("用法:");
   console.log("  node scripts/gate.js status <project-path>");
   console.log("  node scripts/gate.js advance <project-path> [--confirm \"用户确认原话\"] [--compact]");
   console.log("  node scripts/gate.js block <project-path> <reason>");
@@ -378,6 +406,6 @@ switch (cmd) {
   case "unblock": unblock(absPath); break;
   case "reset":   reset(absPath); break;
   default:
-    console.error(`未知命令：${cmd}`);
+    console.error(`未知命令:${cmd}`);
     process.exit(1);
 }

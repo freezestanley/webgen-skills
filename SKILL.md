@@ -37,7 +37,7 @@ depends_on:
 - 每次用户发起操作，先执行：`node scripts/gate.js status <project-path>`
 - `gate.js` 的控制门是脚本强制，不是提示建议；缺少阶段产物、缺少用户确认、缺少 `--compact`、存在 BLOCKER、试图绕过 `publish.js`，都会直接失败
 - 用户确认门只能用用户原话推进，命令格式：`node scripts/gate.js advance <project-path> --confirm "用户确认原话"`
-- 从 `G2_DESIGN` 进入 `G3_DEV` 前，必须先完成 `/compact`，推进时额外带上：`--compact`
+- 从 `G2_DESIGN` 进入 `G3_DEV` 前，AI 自行完成上下文整理（无需提示用户），推进时额外带上：`--compact`
 - `G6_PUBLISH` 禁止使用 `gate.js advance` 直达 `DONE`，只能执行：`node scripts/publish.js <project-path> [--dest <dir>]`
 
 ### 启动时：读取 Gate 状态
@@ -78,7 +78,7 @@ node scripts/gate.js status <project-path>
 **执行步骤**：
 0. 执行`/impeccable init`
 1. 读取 `.webgen/requirements.md`（分块读取，超 30K 先总结）
-2. 参考 `references/design-skill-guide.md` 的 4 阶段规范
+2. 强制准守 `references/design-skill-guide.md` 的设计规范
 3. 生成以下内容，写入 `.webgen/design.md`：
    - Block Tree（区块树）
    - Design Tokens（颜色/间距/字体）
@@ -88,8 +88,8 @@ node scripts/gate.js status <project-path>
    - 状态管理（zustand store 设计）
    - API 代理配置（vite proxy）
 4. 向用户展示方案摘要，**等待用户口头确认**
-5. 先执行 `/compact`
-6. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "方案确认通过，可以进入开发阶段" --compact`
+5. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "方案确认通过，可以进入开发阶段" --compact`
+   （`--compact` 由 AI 自动附加，表示 AI 已完成上下文整理，无需用户执行 /compact）
 7. 
 
 ---
@@ -122,6 +122,37 @@ node scripts/gate.js status <project-path>
 ### G3_DEV → G4_AUDIT：自检验收
 
 **执行步骤**：
+
+#### 步骤 0：运行时验证（必须先通过，否则禁止继续）
+
+使用 MCP chrome-devtools 工具执行，不得跳过：
+
+```
+1. 在后台启动 dev server：
+   cd <project-path> && npm run dev &
+   等待端口就绪（默认 http://localhost:5173）
+
+2. 调用 navigate_page(url="http://localhost:5173") 打开页面
+
+3. 调用 take_screenshot() 确认：
+   - 页面有可见内容（无白屏）
+   - 无明显布局崩溃
+
+4. 调用 list_console_messages(types=["error"]) 抓取控制台错误
+   - console.error 数量必须为 0
+   - 如有错误：逐条记录到 audit.md 的「运行时错误」章节，标记 [P0]，立即回退修复
+
+5. 将运行时验证结论写入 audit.md：
+   ## 运行时验证
+   - 截图：[PASS/FAIL]
+   - console.error 数量：<N>（必须为 0 才能继续）
+   - 结论：[PASS/BLOCKED]
+```
+
+**任意项 FAIL → 禁止进入静态 Audit，必须先修复再重跑步骤 0。**
+
+#### 步骤 1：静态 Audit
+
 1. 逐项执行 `references/design-skill-guide.md` 的 Audit 清单
 2. 将结果写入 `.webgen/audit.md`
 3. 如有 BLOCKER：
@@ -148,7 +179,7 @@ node scripts/gate.js status <project-path>
 ### G5_PREVIEW → G6_PUBLISH → DONE：发布
 
 **执行步骤**：
-1. 执行`npm run build && npm run preview`并在浏览器最大化并在内打开页面，向用户确认是否发布
+1. 执行`npm run build && npm run preview`并在浏览器或CDP中，最大化并打开页面，向用户确认是否发布
 2. **等待用户口头确认发布**
 3. 执行：`node scripts/publish.js <project-path> [--dest <dir>]`
 4. `publish.js` 构建成功后自动推进 Gate 到 DONE
@@ -162,10 +193,10 @@ node scripts/gate.js status <project-path>
 
 | 阈值 | 动作 |
 |------|------|
-| 80% | 中断当前操作，先自动执行 /compact |
-| 进入 G3_DEV 前 | 强制自动执行 /compact |
+| 80% | 中断当前操作，先自动执行 /compact（用户无感） |
+| 进入 G3_DEV 前 | AI 自行整理上下文，直接带 --compact 推进，不打断用户 |
 
-自动/compact后自动读取HANDOFF恢复任务
+/compact 后自动恢复任务，不需要用户介入
 
 ---
 
@@ -188,7 +219,7 @@ projects/
 ## 参考文档索引
 
 - Gate 状态机详细规范：`references/gate-fsm.md`
-- 页面设计 4 阶段规范：`references/design-skill-guide.md`
+- 页面设计规范：`references/design-skill-guide.md`
 - 技术栈 scaffold 使用：`references/scaffold-setup.md`
 - 全局配置变量：`config.js`
 

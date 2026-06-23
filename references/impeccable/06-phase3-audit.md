@@ -26,9 +26,10 @@
 /impeccable audit
 ```
 
-- 产出写入 `.webgen/audit.md`，按 P0/P1/P2/P3 分级。
-- 每个问题自动关联对应精雕命令（规则映射，非 AI 主观判断）。
-- 同步对照 `design-taste-frontend §7 AI Tells` 检测设计反模式。
+- 产出写入 `.webgen/audit.md`，按 P0/P1/P2/P3 分级
+- 每个问题自动关联对应精雕命令（规则映射，非 AI 主观判断）
+- 同步对照 `design-taste-frontend §7 AI Tells` 检测设计反模式
+- 根据检测结果进行页面优化
 
 ---
 
@@ -121,11 +122,44 @@ DESIGN_VARIANCE > 4 时额外检查：
 
 ## G4 校验
 
+**前置：运行时验证必须通过（由 MCP chrome-devtools 执行，非静态检查）**
+
+```
+检查项                          工具调用                          通过条件
+─────────────────────────────────────────────────────────────────────────
+无白屏                          take_screenshot()                 页面有可见内容
+console.error 为 0              list_console_messages(["error"])  count === 0
+```
+
+运行时验证结论必须写入 audit.md `## 运行时验证` 章节，且结论行包含 `PASS`。
+
+**静态校验脚本**
+
 ```bash
 [ -f .webgen/audit.md ] || exit 1
 node -e "
   const fs = require('fs');
   const txt = fs.readFileSync('.webgen/audit.md', 'utf8');
-  if (/\[P0\]|\[P1\]/.test(txt)) process.exit(1);
+
+  // 运行时验证必须存在且 PASS
+  if (!/## 运行时验证/.test(txt)) {
+    console.error('[G4] 缺少运行时验证章节，禁止推进');
+    process.exit(1);
+  }
+  const runtimeSection = txt.split('## 运行时验证')[1] || '';
+  if (!/console\.error 数量：\s*0/.test(runtimeSection)) {
+    console.error('[G4] console.error 不为 0，禁止推进');
+    process.exit(1);
+  }
+  if (!/结论：\s*PASS/.test(runtimeSection)) {
+    console.error('[G4] 运行时验证结论不是 PASS，禁止推进');
+    process.exit(1);
+  }
+
+  // 静态 audit 不得有 P0/P1
+  if (/\[P0\]|\[P1\]/.test(txt)) {
+    console.error('[G4] 存在 P0/P1 问题，禁止推进');
+    process.exit(1);
+  }
 "
 ```

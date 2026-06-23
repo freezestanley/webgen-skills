@@ -152,18 +152,23 @@ export default request;
 
 ## 图片素材规范
 
-禁止下载图片到本地，使用 CDN URL：
+运行获取图片作为素材,只允许使用百度搜素
 
+```
+python3 image_search.py [关键词] [下载数量]
+```
 ```
 Unsplash：https://images.unsplash.com/photo-<id>?w=800&q=80
 Pexels：https://images.pexels.com/photos/<id>/pexels-photo-<id>.jpeg?w=800
 ```
+- 图片下载到本地,项目assets文件夹下
+- 找不到图使用默认占位图`./default.jpg`
+- 禁止直接读取图片,撑爆context
 
 在 HTML/JSX 中直接引用：
 ```jsx
-<img src="https://images.unsplash.com/photo-xxx?w=800&q=80" alt="描述" />
+<img src="./assets/default.jpg" alt="描述" />
 ```
-
 ---
 
 ## 启动开发服务器
