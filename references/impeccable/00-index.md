@@ -10,11 +10,16 @@
 
 ```
 init → shape → critique → craft
-                           ↳ (bolder / colorize / layout 穿插)
                            ↓
-               harden + onboard
+              (bolder / colorize / layout 穿插)
+                           ↓
+                    design-taste-frontend
+                           ↓
+                    harden + onboard
                            ↓
                          audit
+                           ↓
+                  design-taste-frontend
                            ↓
                         polish → Ship
 ```
