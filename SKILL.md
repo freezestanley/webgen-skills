@@ -27,6 +27,9 @@ depends_on:
 | 禁止在 HANDOFF 前执行 /compact 或 /clear | 防止丢失任务状态 |
 | 禁止代替用户确认 Gate | 用户确认门（G1/G2/G5/G6）必须用户口头确认 |
 | 禁止一次性生成完整大页面 | 按 Block Tree 逐区块生成 |
+| 禁止将 shape 和 critique 合并在同一 turn 执行 | 中间产物必须独立落地，验证环节不可压缩 |
+| 禁止手动填写 shape-output.md / critique-score.json | 必须通过 /impeccable 工作流生成，gate.js 会校验 sourceSha256 |
+| 禁止直接写 design.md 绕过 shape → critique | design.md 是派生摘要，G2 准出依据是 shape-output.md + critique-score.json |
 
 ---
 
@@ -73,24 +76,30 @@ node scripts/gate.js status <project-path>
 
 ### G1_REQUIREMENTS → G2_DESIGN：方案输出
 
-**进入前强制执行 `/compact`（新页面设计前必须）**
+**执行步骤**（每步有独立产物，禁止合并执行）：
 
-**执行步骤**：
-0. 执行`/impeccable init`
+**turn 1 — shape**
+0. 执行 `/impeccable init`（新项目）或 `/impeccable document`（存量项目）
 1. 读取 `.webgen/requirements.md`（分块读取，超 30K 先总结）
-2. 强制准守 `references/design-skill-guide.md` 的设计规范
-3. 生成以下内容，写入 `.webgen/design.md`：
-   - Block Tree（区块树）
-   - Design Tokens（颜色/间距/字体）
-   - 布局骨架（响应式断点策略）
-   - 组件清单（antd 组件 + 自定义组件）
-   - 路由设计（react-router-dom）
-   - 状态管理（zustand store 设计）
-   - API 代理配置（vite proxy）
-4. 向用户展示方案摘要，**等待用户口头确认**
-5. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "方案确认通过，可以进入开发阶段" --compact`
-   （`--compact` 由 AI 自动附加，表示 AI 已完成上下文整理，无需用户执行 /compact）
-7. 
+2. 强制遵守 `references/design-skill-guide.md` 的设计规范
+3. 执行 `/impeccable shape`
+   - 产物：`.webgen/shape-output.md`（Block Tree + Design Tokens）
+   - 产物存在且非空后，才进入下一 turn
+   - **禁止跳过直接写 design.md**
+
+**turn 2 — critique**
+4. 执行 `/impeccable critique`
+   - 产物：`.webgen/critique-score.json`（含 `total`、`dimensions`、`sourceSha256`、`passed`）
+   - `total ≥ 75` 且各维度 `score/max ≥ 0.6` 才继续
+   - 不通过则修改 shape prompt 重跑，最多 3 次
+   - critique 必须在 shape 本 turn 结束后的独立 turn 执行
+
+**turn 3 — 综合输出**
+5. critique 通过后，综合 shape-output.md 生成完整 `.webgen/design.md`（派生摘要）
+   - design.md 不是 G2 准出依据，只是面向开发的可读摘要
+6. 向用户展示方案摘要，**等待用户口头确认**
+7. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "方案确认通过，可以进入开发阶段" --compact`
+   （`--compact` 由 AI 自动附加，无需用户执行 /compact）
 
 ---
 

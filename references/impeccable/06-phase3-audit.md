@@ -28,10 +28,17 @@
 
 - 产出写入 `.webgen/audit.md`，按 P0/P1/P2/P3 分级
 - 每个问题自动关联对应精雕命令（规则映射，非 AI 主观判断）
-- 同步对照 `design-taste-frontend §7 AI Tells` 检测设计反模式
-- 根据检测结果进行页面优化
 
 ---
+
+## 审计维度零：UI/UE
+
+**UI/UE审计**：
+
+- 执行 `design-taste-frontend §7 AI Tells` 检测设计反模式
+- 产出写入 `.webgen/audit.md`，按 P0/P1/P2/P3 分级
+- 根据检测结果进行页面优化
+
 
 ## 审计维度一：响应式与适配
 

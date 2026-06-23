@@ -134,6 +134,73 @@ ${conclusion}
 `);
 }
 
+const crypto = require("node:crypto");
+
+function sha256(content) {
+  return crypto.createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+/**
+ * 把项目快速推进到 G2_DESIGN 状态（gate.json current = "G2_DESIGN"）
+ * 已写好 requirements.md + design.md，gate 版本为 v2
+ */
+function advanceToG2Design(projectPath, t) {
+  // G0 → G1
+  assert.equal(runNodeScript(gateScript, ["advance", projectPath]).status, 0);
+  // 写需求
+  writeRequirements(projectPath);
+  // G1 → G2
+  assert.equal(
+    runNodeScript(gateScript, [
+      "advance", projectPath,
+      "--confirm", "需求确认完毕，可以进入方案阶段"
+    ]).status,
+    0
+  );
+  // 写 design.md
+  writeDesign(projectPath);
+}
+
+function writeShape(projectPath, content) {
+  const shapePath = path.join(projectPath, config.WEBGEN_DIR, config.SHAPE_FILE);
+  fs.writeFileSync(shapePath, content ?? `# Shape Output — demo-page
+
+## Block Tree
+NavBar -> Hero -> Services -> Footer
+Hero: 大标题 + 副文案 + CTA 按钮
+Services: 3 列卡片网格
+Footer: 版权信息 + 链接组
+
+## Design Tokens
+主色 #F97316，背景 #FFF7ED，深棕 #7C2D12
+字体：16/20/32，间距：4/8/16/24/32/48
+圆角：8px，阴影：0 2px 8px rgba(0,0,0,0.08)
+`);
+  return shapePath;
+}
+
+function writeCritique(projectPath, overrides = {}) {
+  const shapePath = path.join(projectPath, config.WEBGEN_DIR, config.SHAPE_FILE);
+  const shapeContent = fs.existsSync(shapePath) ? fs.readFileSync(shapePath, "utf-8") : "";
+  const base = {
+    passed: true,
+    total: 80,
+    sourceSha256: sha256(shapeContent),
+    generatedAt: new Date().toISOString(),
+    dimensions: [
+      { name: "视觉层次", score: 8, max: 10 },
+      { name: "色彩系统", score: 8, max: 10 },
+      { name: "间距节奏", score: 8, max: 10 },
+      { name: "组件规范", score: 8, max: 10 }
+    ]
+  };
+  const critique = Object.assign({}, base, overrides);
+  fs.writeFileSync(
+    path.join(projectPath, config.WEBGEN_DIR, config.CRITIQUE_FILE),
+    JSON.stringify(critique, null, 2)
+  );
+}
+
 test("G1_REQUIREMENTS rejects advance when requirements are incomplete", (t) => {
   const projectPath = createProject(t);
 
@@ -199,4 +266,107 @@ test("G6_PUBLISH cannot be advanced directly without running publish.js", (t) =>
   const result = runNodeScript(gateScript, ["advance", projectPath, "--confirm", "确认发布"]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /publish\.js|发布/i);
+});
+
+// ─── impeccable 校验新用例 ───────────────────────────────────────────────────
+
+test("G2_DESIGN: 空 shape-output.md 被拒绝", (t) => {
+  const projectPath = createProject(t);
+  advanceToG2Design(projectPath, t);
+
+  // 写入空 shape（仅有注释行，实质内容不足 5 行）
+  writeShape(projectPath, "# Shape Output\n> 占位\n");
+
+  writeCritique(projectPath);
+
+  const result = runNodeScript(gateScript, [
+    "advance", projectPath,
+    "--confirm", "方案确认通过，可以进入开发阶段",
+    "--compact"
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /shape|内容不足/i);
+});
+
+test("G2_DESIGN: critique-score.json 损坏（非法 JSON）被拒绝", (t) => {
+  const projectPath = createProject(t);
+  advanceToG2Design(projectPath, t);
+  writeShape(projectPath); // shape 必须合法，才能走到 critique 校验
+
+  // 写入损坏的 JSON（覆盖占位文件）
+  fs.writeFileSync(
+    path.join(projectPath, config.WEBGEN_DIR, config.CRITIQUE_FILE),
+    "{ broken json ::::"
+  );
+
+  const result = runNodeScript(gateScript, [
+    "advance", projectPath,
+    "--confirm", "方案确认通过，可以进入开发阶段",
+    "--compact"
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /JSON|格式损坏/i);
+});
+
+test("G2_DESIGN: passed=true 但 total<75 被拒绝", (t) => {
+  const projectPath = createProject(t);
+  advanceToG2Design(projectPath, t);
+  writeShape(projectPath); // shape 合法，确保校验走到 total 检查
+
+  writeCritique(projectPath, { passed: true, total: 60 });
+
+  const result = runNodeScript(gateScript, [
+    "advance", projectPath,
+    "--confirm", "方案确认通过，可以进入开发阶段",
+    "--compact"
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /total|75|未通过/i);
+});
+
+test("G2_DESIGN: shape 改动后 sourceSha256 哈希失配被拒绝", (t) => {
+  const projectPath = createProject(t);
+  advanceToG2Design(projectPath, t);
+
+  // 先写 shape，生成 critique（含正确哈希）
+  writeShape(projectPath);
+  writeCritique(projectPath);
+
+  // 再修改 shape（哈希失效）
+  writeShape(projectPath, `# Shape Output — demo-page
+
+## Block Tree
+NavBar -> Hero -> **修改后内容** -> Footer
+
+## Design Tokens
+主色 #000000
+`);
+
+  const result = runNodeScript(gateScript, [
+    "advance", projectPath,
+    "--confirm", "方案确认通过，可以进入开发阶段",
+    "--compact"
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /SHA256|哈希|critique|shape/i);
+});
+
+test("G2_DESIGN: v1 老项目跳过 impeccable 校验并打印迁移提示", (t) => {
+  const projectPath = createProject(t);
+
+  // 强制降级为 v1
+  updateGate(projectPath, (state) => ({ ...state, workflowVersion: "v1" }));
+  advanceToG2Design(projectPath, t);
+  writeShape(projectPath);
+  // 不写 critique-score.json，v1 应跳过校验
+
+  const result = runNodeScript(gateScript, [
+    "advance", projectPath,
+    "--confirm", "方案确认通过，可以进入开发阶段",
+    "--compact"
+  ]);
+  // v1 应通过
+  assert.equal(result.status, 0, result.stderr);
+  // 应打印迁移提示
+  assert.match(result.stderr, /v1|迁移|workflowVersion/i);
 });

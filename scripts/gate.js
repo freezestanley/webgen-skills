@@ -14,6 +14,7 @@
  */
 
 const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const config = require(path.join(SKILL_ROOT, "config"));
@@ -155,6 +156,87 @@ function validateDesign(projectPath) {
   ]);
 }
 
+function sha256(content) {
+  return crypto.createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+function validateImpeccable(projectPath) {
+  // 老项目（v1）跳过校验，给出迁移提示
+  const gateFilePath = getGateFilePath(projectPath);
+  const state = JSON.parse(fs.readFileSync(gateFilePath, "utf-8"));
+  if (!state.workflowVersion || state.workflowVersion === "v1") {
+    console.warn("[GATE] 警告：当前项目为 v1 老项目，跳过 impeccable 校验。");
+    console.warn("[GATE] 迁移指引：执行 /impeccable shape 和 /impeccable critique，");
+    console.warn("[GATE] 产物写入 .webgen/shape-output.md 和 .webgen/critique-score.json，");
+    console.warn("[GATE] 然后在 gate.json 中将 workflowVersion 改为 \"v2\"。");
+    return;
+  }
+
+  // 1. shape-output.md 必须存在且有实质内容
+  const shapePath = path.join(projectPath, config.WEBGEN_DIR, config.SHAPE_FILE);
+  if (!fs.existsSync(shapePath)) {
+    fail("shape-output.md 不存在，请先执行 /impeccable shape", `缺少文件：${shapePath}`);
+  }
+  const shapeContent = fs.readFileSync(shapePath, "utf-8");
+  const shapeLines = shapeContent
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith("#") && !l.startsWith(">") && !l.startsWith("<!--"));
+  if (shapeLines.length < 5) {
+    fail("shape-output.md 内容不足，禁止推进", "请确认 /impeccable shape 已正确输出 Block Tree 和 Design Tokens");
+  }
+
+  // 2. critique-score.json 必须存在且合法
+  const critiquePath = path.join(projectPath, config.WEBGEN_DIR, config.CRITIQUE_FILE);
+  if (!fs.existsSync(critiquePath)) {
+    fail("critique-score.json 不存在，请先执行 /impeccable critique", `缺少文件：${critiquePath}`);
+  }
+
+  let score;
+  try {
+    score = JSON.parse(fs.readFileSync(critiquePath, "utf-8"));
+  } catch (e) {
+    fail("critique-score.json 格式损坏，无法解析", `JSON 解析错误：${e.message}`);
+  }
+
+  // 3. 占位文件（_placeholder）视为未执行
+  if (score._placeholder) {
+    fail("critique-score.json 是占位文件，请先执行 /impeccable critique");
+  }
+
+  // 4. 重算通过条件，不信任 passed 字段
+  const total = typeof score.total === "number" ? score.total : -1;
+  if (total < 75) {
+    fail(
+      `critique 未通过，total=${total}（需 ≥ 75），请修改 shape 后重跑 /impeccable critique`,
+      `当前得分：${total}`
+    );
+  }
+
+  // 5. 各维度 score/max >= 0.6
+  if (Array.isArray(score.dimensions)) {
+    const failedDims = score.dimensions.filter(d => {
+      if (typeof d.score !== "number" || typeof d.max !== "number" || d.max === 0) return false;
+      return d.score / d.max < 0.6;
+    });
+    if (failedDims.length > 0) {
+      const names = failedDims.map(d => `${d.name}(${d.score}/${d.max})`).join("、");
+      fail(`critique 部分维度未达标（需各维度 ≥ 60%）：${names}`);
+    }
+  }
+
+  // 6. sourceSha256 必须与当前 shape-output.md 一致，防止 critique 与 shape 脱钩
+  if (score.sourceSha256) {
+    const currentSha = sha256(shapeContent);
+    if (score.sourceSha256 !== currentSha) {
+      fail(
+        "shape-output.md 已被修改，critique-score.json 与当前 shape 不一致，请重新执行 /impeccable critique",
+        `期望 SHA256：${score.sourceSha256}\n当前 SHA256：${currentSha}`
+      );
+    }
+  }
+}
+
 function validateAudit(projectPath) {
   const filePath = path.join(projectPath, config.WEBGEN_DIR, config.AUDIT_FILE);
   const txt = readTextFile(filePath, "audit.md");
@@ -212,6 +294,7 @@ function validateAdvance(projectPath, state, options) {
       break;
     case "G2_DESIGN":
       validateDesign(projectPath);
+      validateImpeccable(projectPath);
       break;
     case "G4_AUDIT":
       validateAudit(projectPath);

@@ -74,6 +74,7 @@ const gateState = {
   blocked: false,
   blockReason: null,
   history: [],
+  workflowVersion: config.WORKFLOW_VERSION,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString()
 };
@@ -141,6 +142,29 @@ fs.writeFileSync(path.join(webgenDir, config.DESIGN_FILE), `# 设计方案 — $
 ## 接口代理配置
 <!-- vite proxy 配置 -->
 `);
+
+// 初始化 shape-output.md 占位（G2 阶段由 /impeccable shape 填写）
+fs.writeFileSync(path.join(webgenDir, config.SHAPE_FILE), `# Shape Output — ${projectName}
+
+> 此文件由 /impeccable shape 在 G2_DESIGN 阶段生成。
+> 禁止手动填写绕过 impeccable 工作流。
+
+## Block Tree
+<!-- /impeccable shape 输出 -->
+
+## Design Tokens
+<!-- /impeccable shape 输出 -->
+`);
+
+// 初始化 critique-score.json 占位（G2 阶段由 /impeccable critique 填写）
+fs.writeFileSync(path.join(webgenDir, config.CRITIQUE_FILE), JSON.stringify({
+  _placeholder: true,
+  passed: false,
+  total: 0,
+  sourceSha256: "",
+  dimensions: [],
+  generatedAt: ""
+}, null, 2));
 
 // 初始化 audit.md 占位
 fs.writeFileSync(path.join(webgenDir, config.AUDIT_FILE), `# 自检报告 — ${projectName}

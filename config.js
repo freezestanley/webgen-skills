@@ -21,6 +21,13 @@ module.exports = {
   // 自检报告文件名（.webgen/ 下）
   AUDIT_FILE: "audit.md",
 
+  // impeccable 工作流产物文件名（.webgen/ 下）
+  SHAPE_FILE: "shape-output.md",
+  CRITIQUE_FILE: "critique-score.json",
+
+  // Gate 工作流版本：v1 = 老项目（跳过 impeccable 校验），v2 = 新项目（强制校验）
+  WORKFLOW_VERSION: "v2",
+
   // 技术栈（禁止修改）
   TECH_STACK: {
     bundler: "vite",
