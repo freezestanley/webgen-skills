@@ -319,7 +319,8 @@ function parseCli(rawArgs) {
   const positional = [];
   const options = {
     compact: false,
-    confirm: ""
+    confirm: "",
+    reason: ""
   };
 
   for (let i = 0; i < rawArgs.length; i += 1) {
@@ -330,6 +331,11 @@ function parseCli(rawArgs) {
     }
     if (arg === "--confirm") {
       options.confirm = (rawArgs[i + 1] || "").trim();
+      i += 1;
+      continue;
+    }
+    if (arg === "--reason") {
+      options.reason = (rawArgs[i + 1] || "").trim();
       i += 1;
       continue;
     }
@@ -475,6 +481,40 @@ function reset(projectPath) {
   console.log("[GATE] 已重置到 G0_INIT");
 }
 
+function reopenDev(projectPath, options) {
+  const state = readGate(projectPath);
+  if (!state) {
+    fail("项目未初始化");
+  }
+
+  const allowedGates = new Set(["G5_PREVIEW", "G6_PUBLISH", "DONE"]);
+  if (!allowedGates.has(state.current)) {
+    fail(
+      `当前阶段 ${state.current} 不允许执行 reopen-dev`,
+      "仅允许从 G5_PREVIEW、G6_PUBLISH、DONE 回退到 G3_DEV"
+    );
+  }
+
+  if (!options.reason) {
+    fail("reopen-dev 必须附带 --reason", "示例: node scripts/gate.js reopen-dev <project-path> --reason \"新增 about 页面\"");
+  }
+
+  state.history = state.history || [];
+  state.history.push({
+    from: state.current,
+    to: "G3_DEV",
+    at: new Date().toISOString(),
+    type: "reopen-dev",
+    reason: options.reason
+  });
+  state.current = "G3_DEV";
+  state.blocked = false;
+  state.blockReason = null;
+  writeGate(projectPath, state);
+
+  console.log(`[GATE] 已回退到 G3_DEV:${state.history[state.history.length - 1].from} → G3_DEV`);
+}
+
 // CLI 入口
 const { cmd, projectPath, args, options } = parseCli(process.argv.slice(2));
 
@@ -484,6 +524,7 @@ if (!cmd || !projectPath) {
   console.log("  node scripts/gate.js advance <project-path> [--confirm \"用户确认原话\"] [--compact]");
   console.log("  node scripts/gate.js block <project-path> <reason>");
   console.log("  node scripts/gate.js unblock <project-path>");
+  console.log("  node scripts/gate.js reopen-dev <project-path> --reason \"新增 about 页面\"");
   console.log("  node scripts/gate.js reset <project-path>");
   process.exit(0);
 }
@@ -495,6 +536,7 @@ switch (cmd) {
   case "advance": advance(absPath, options); break;
   case "block":   block(absPath, args.join(" ")); break;
   case "unblock": unblock(absPath); break;
+  case "reopen-dev": reopenDev(absPath, options); break;
   case "reset":   reset(absPath); break;
   default:
     console.error(`未知命令:${cmd}`);

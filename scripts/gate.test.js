@@ -42,6 +42,10 @@ function gateFile(projectPath) {
   return path.join(projectPath, config.WEBGEN_DIR, config.GATE_FILE);
 }
 
+function readGateState(projectPath) {
+  return JSON.parse(fs.readFileSync(gateFile(projectPath), "utf8"));
+}
+
 function updateGate(projectPath, updater) {
   const file = gateFile(projectPath);
   const state = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -361,6 +365,129 @@ test("G6_PUBLISH cannot be advanced directly without running publish.js", (t) =>
   const result = runNodeScript(gateScript, ["advance", projectPath, "--confirm", "确认发布"]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /publish\.js|发布/i);
+});
+
+test("help text includes reopen-dev usage", () => {
+  const result = runNodeScript(gateScript, []);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /reopen-dev <project-path> --reason/);
+});
+
+test("reopen-dev moves G5_PREVIEW back to G3_DEV and records history", (t) => {
+  const projectPath = createProject(t);
+
+  updateGate(projectPath, (state) => ({
+    ...state,
+    current: "G5_PREVIEW"
+  }));
+
+  const result = runNodeScript(gateScript, [
+    "reopen-dev",
+    projectPath,
+    "--reason",
+    "新增 about 页面"
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const state = readGateState(projectPath);
+  const historyEntry = state.history.at(-1);
+
+  assert.equal(state.current, "G3_DEV");
+  assert.equal(historyEntry.from, "G5_PREVIEW");
+  assert.equal(historyEntry.to, "G3_DEV");
+  assert.equal(historyEntry.type, "reopen-dev");
+  assert.equal(historyEntry.reason, "新增 about 页面");
+});
+
+test("reopen-dev moves G6_PUBLISH back to G3_DEV and clears blocked state", (t) => {
+  const projectPath = createProject(t);
+
+  updateGate(projectPath, (state) => ({
+    ...state,
+    current: "G6_PUBLISH",
+    blocked: true,
+    blockReason: "等待用户确认"
+  }));
+
+  const result = runNodeScript(gateScript, [
+    "reopen-dev",
+    projectPath,
+    "--reason",
+    "修复导航错位"
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const state = readGateState(projectPath);
+  const historyEntry = state.history.at(-1);
+
+  assert.equal(state.current, "G3_DEV");
+  assert.equal(state.blocked, false);
+  assert.equal(state.blockReason, null);
+  assert.equal(historyEntry.from, "G6_PUBLISH");
+  assert.equal(historyEntry.to, "G3_DEV");
+  assert.equal(historyEntry.type, "reopen-dev");
+  assert.equal(historyEntry.reason, "修复导航错位");
+});
+
+test("reopen-dev moves DONE back to G3_DEV", (t) => {
+  const projectPath = createProject(t);
+
+  updateGate(projectPath, (state) => ({
+    ...state,
+    current: "DONE"
+  }));
+
+  const result = runNodeScript(gateScript, [
+    "reopen-dev",
+    projectPath,
+    "--reason",
+    "补充 footer 文案"
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const state = readGateState(projectPath);
+  const historyEntry = state.history.at(-1);
+
+  assert.equal(state.current, "G3_DEV");
+  assert.equal(historyEntry.from, "DONE");
+  assert.equal(historyEntry.to, "G3_DEV");
+  assert.equal(historyEntry.type, "reopen-dev");
+  assert.equal(historyEntry.reason, "补充 footer 文案");
+});
+
+test("reopen-dev fails from earlier gates", (t) => {
+  const projectPath = createProject(t);
+
+  updateGate(projectPath, (state) => ({
+    ...state,
+    current: "G2_DESIGN"
+  }));
+
+  const designResult = runNodeScript(gateScript, [
+    "reopen-dev",
+    projectPath,
+    "--reason",
+    "新增 about 页面"
+  ]);
+
+  assert.notEqual(designResult.status, 0);
+  assert.match(designResult.stderr, /G2_DESIGN|G5_PREVIEW|G6_PUBLISH|DONE|reopen-dev/i);
+
+  updateGate(projectPath, (state) => ({
+    ...state,
+    current: "G4_AUDIT"
+  }));
+
+  const auditResult = runNodeScript(gateScript, [
+    "reopen-dev",
+    projectPath,
+    "--reason",
+    "新增 about 页面"
+  ]);
+
+  assert.notEqual(auditResult.status, 0);
+  assert.match(auditResult.stderr, /G4_AUDIT|G5_PREVIEW|G6_PUBLISH|DONE|reopen-dev/i);
 });
 
 test("publish.js copies dist to destinations with spaces safely", (t) => {

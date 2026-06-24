@@ -6,6 +6,32 @@
 G0_INIT → G1_REQUIREMENTS → G2_DESIGN → G3_DEV → G4_AUDIT → G5_PREVIEW → G6_PUBLISH → DONE
 ```
 
+## 续改已有项目的回退规则
+
+`DONE` 不是永久免检状态。如果已有项目再次发生开发类请求，必须重新回到 `G3_DEV`。
+
+以下情况都视为开发类请求：
+
+- 新增页面
+- 修改已有页面
+- 修 bug
+- 调整布局、样式、动画、交互、文案
+- 在已有项目上继续开发
+
+当项目当前 Gate 为 `G5_PREVIEW`、`G6_PUBLISH` 或 `DONE` 时，必须先执行：
+
+```bash
+node scripts/gate.js reopen-dev ./projects/my-page --reason "新增 about 页面"
+```
+
+然后重新走：
+
+```text
+G3_DEV → G4_AUDIT → G5_PREVIEW
+```
+
+完成开发、自检和用户预览确认后，才允许再次发布。
+
 ## 各 Gate 定义
 
 | Gate | 名称 | 退出条件 | 需要用户确认 |
@@ -59,6 +85,9 @@ node scripts/gate.js advance ./projects/my-page --confirm "方案确认通过，
 # 推进到 G6（预览通过后）
 node scripts/gate.js advance ./projects/my-page --confirm "预览通过，可以发布"
 
+# 已发布或待发布项目续改时，先回到 G3_DEV
+node scripts/gate.js reopen-dev ./projects/my-page --reason "新增 about 页面"
+
 # 记录阻塞
 node scripts/gate.js block ./projects/my-page "audit.md 发现响应式布局 BLOCKER"
 
@@ -84,5 +113,5 @@ node scripts/publish.js ./projects/my-page --dest /var/www/html
       G4: 填写 audit.md → 无 BLOCKER 后 advance
       G5: 启动 dev server → 等待用户预览确认 → advance --confirm
       G6: 执行 publish.js
-      DONE: 告知用户项目已发布
+      DONE: 如用户继续开发，先 reopen-dev 回到 G3；否则告知用户项目已发布
 ```

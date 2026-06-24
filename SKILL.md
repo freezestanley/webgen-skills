@@ -74,6 +74,7 @@ depends_on:
 
 - 每次用户发起操作，先执行：`node scripts/gate.js status <project-path>`
 - `gate.js` 的控制门是脚本强制，不是提示建议；缺少阶段产物、缺少用户确认、缺少 `--compact`、存在 BLOCKER、试图绕过 `publish.js`，都会直接失败
+- 续改已有项目时，凡是新增页面、修改页面、修 bug、补样式、补交互、补文案，都视为 `development-intent`，必须先判断是否需要回退 Gate
 - 用户确认门只能用用户原话推进，命令格式：`node scripts/gate.js advance <project-path> --confirm "用户确认原话"`
 - 从 `G2_DESIGN` 进入 `G3_DEV` 前，必须先完成 `/compact`，推进时额外带上：`--compact`
 - `G6_PUBLISH` 禁止使用 `gate.js advance` 直达 `DONE`，只能执行：`node scripts/publish.js <project-path> [--dest <dir>]`
@@ -87,6 +88,36 @@ node scripts/gate.js status <project-path>
 ```
 
 根据返回的 `current` 决定下一步行动，不得凭记忆判断。
+
+### 续改守卫：已有项目发生开发类请求时，必须先回到 G3_DEV
+
+以下请求统一视为 `development-intent`：
+
+- 新增页面
+- 修改已有页面
+- 修 bug
+- 调整布局、样式、动画、交互、文案
+- 在已有项目上继续开发
+
+如果命中 `development-intent`，并且当前 Gate 是：
+
+- `G5_PREVIEW`
+- `G6_PUBLISH`
+- `DONE`
+
+则必须先执行：
+
+```bash
+node scripts/gate.js reopen-dev <project-path> --reason "<用户本次修改意图>"
+```
+
+执行 `reopen-dev` 之后，Gate 必须回到 `G3_DEV`，然后重新按：
+
+```text
+G3_DEV -> G4_AUDIT -> G5_PREVIEW
+```
+
+继续推进。禁止先写代码、后补 Gate。
 
 ---
 
@@ -191,8 +222,10 @@ node scripts/gate.js status <project-path>
    cd <project-path> && npm install && npm run dev
    # → http://localhost:5173
    ```
-2. **等待用户在浏览器预览并口头确认**："预览通过，可以发布"
-3. 用户确认后：
+2. 开发完成后，必须明确对用户说：
+   `开发完毕，请在浏览器预览 http://URL 地址，确认后说“预览通过，可以发布”`
+3. **等待用户在浏览器预览并口头确认**："预览通过，可以发布"
+4. 用户确认后：
   `node scripts/gate.js advance <project-path> --confirm "预览通过，可以发布"`
 
 ---
