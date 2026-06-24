@@ -23,13 +23,19 @@ depends_on:
 | 禁止修改技术栈 | 用户要求修改时明确拒绝 |
 | 禁止一次性读写 >30K 文件 | 防止 context 爆炸 |
 | 禁止读取 base64 图片 | 极度消耗 context |
-| 禁止下载图片到本地 | 使用 CDN URL 直接引用 |
+| 禁止图片使用 CDN URL 直接引用 | 下载图片到本地 |
 | 禁止在 HANDOFF 前执行 /compact 或 /clear | 防止丢失任务状态 |
 | 禁止代替用户确认 Gate | 用户确认门（G1/G2/G5/G6）必须用户口头确认 |
 | 禁止一次性生成完整大页面 | 按 Block Tree 逐区块生成 |
-| 禁止将 shape 和 critique 合并在同一 turn 执行 | 中间产物必须独立落地，验证环节不可压缩 |
-| 禁止手动填写 shape-output.md / critique-score.json | 必须通过 /impeccable 工作流生成，gate.js 会校验 sourceSha256 |
-| 禁止直接写 design.md 绕过 shape → critique | design.md 是派生摘要，G2 准出依据是 shape-output.md + critique-score.json |
+
+**大文件处理协议**：
+```
+如果需要读取已有大文件：
+  1. 读取文件前 80 行 → 总结结构
+  2. 读取中间部分 → 总结逻辑
+  3. 读取末尾部分 → 确认完整性
+  4. 基于总结执行修改，不保留原文
+```
 
 ---
 
@@ -40,7 +46,7 @@ depends_on:
 - 每次用户发起操作，先执行：`node scripts/gate.js status <project-path>`
 - `gate.js` 的控制门是脚本强制，不是提示建议；缺少阶段产物、缺少用户确认、缺少 `--compact`、存在 BLOCKER、试图绕过 `publish.js`，都会直接失败
 - 用户确认门只能用用户原话推进，命令格式：`node scripts/gate.js advance <project-path> --confirm "用户确认原话"`
-- 从 `G2_DESIGN` 进入 `G3_DEV` 前，AI 自行完成上下文整理（无需提示用户），推进时额外带上：`--compact`
+- 从 `G2_DESIGN` 进入 `G3_DEV` 前，必须先完成 `/compact`，推进时额外带上：`--compact`
 - `G6_PUBLISH` 禁止使用 `gate.js advance` 直达 `DONE`，只能执行：`node scripts/publish.js <project-path> [--dest <dir>]`
 
 ### 启动时：读取 Gate 状态
@@ -76,55 +82,32 @@ node scripts/gate.js status <project-path>
 
 ### G1_REQUIREMENTS → G2_DESIGN：方案输出
 
-**执行步骤**（每步有独立产物，禁止合并执行）：
+**进入前强制执行 `/compact`（新页面设计前必须）**
 
-**turn 1 — shape**
-0. 执行 `/impeccable init`（新项目）或 `/impeccable document`（存量项目）
+**执行步骤**：
+0. 执行`/impeccable init`
 1. 读取 `.webgen/requirements.md`（分块读取，超 30K 先总结）
-2. 强制遵守 `references/design-skill-guide.md` 的设计规范
-3. 执行 `/impeccable shape`
-   - 产物：`.webgen/shape-output.md`（Block Tree + Design Tokens）
-   - 产物存在且非空后，才进入下一 turn
-   - **禁止跳过直接写 design.md**
+2. 强制准守 `references/design-skill-guide.md` 的设计流程
+3. 生成以下内容，写入 `.webgen/design.md`：
+   - Block Tree（区块树）
+   - Design Tokens（颜色/间距/字体）
+   - 布局骨架（响应式断点策略）
+   - 组件清单（antd 组件 + 自定义组件）
+   - 路由设计（react-router-dom）
+   - 状态管理（zustand store 设计）
+   - API 代理配置（vite proxy）
+4. 向用户展示方案摘要，**等待用户口头确认**
+5. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "方案确认通过，可以进入开发阶段" --compact`
 
-**turn 2 — critique**
-4. 执行 `/impeccable critique`
-   - 产物：`.webgen/critique-score.json`（含 `total`、`dimensions`、`sourceSha256`、`passed`）
-   - `total ≥ 75` 且各维度 `score/max ≥ 0.6` 才继续
-   - 不通过则修改 shape prompt 重跑，最多 3 次
-   - critique 必须在 shape 本 turn 结束后的独立 turn 执行
-
-**turn 3 — 综合输出**
-5. critique 通过后，综合 shape-output.md 生成完整 `.webgen/design.md`（派生摘要）
-   - design.md 不是 G2 准出依据，只是面向开发的可读摘要
-6. 向用户展示方案摘要，**等待用户口头确认**
-7. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "方案确认通过，可以进入开发阶段" --compact`
-   （`--compact` 由 AI 自动附加，无需用户执行 /compact）
 
 ---
 
 ### G2_DESIGN → G3_DEV：代码落地
 
 **执行步骤**：
-1. 读取 `.webgen/design.md` 的 Block Tree 和组件清单
-2. 按以下顺序逐步落地（每步完成才进行下一步）：
-   - a. 基础结构：`js/App.jsx` + `js/router.jsx`
-   - b. 状态管理：`js/store/*.js`
-   - c. API 层：`js/api/*.js`
-   - d. 逐个区块：`sections/*.jsx`（从上到下）
-   - e. 复用组件：`js/components/*.jsx`
-3. 每个文件生成后检查文件大小，>30K 立即拆分
-4. 所有文件生成完成，更新 `vite.config.js` 的 proxy 配置
-5. 推进：`node scripts/gate.js advance <project-path>`
+1. 执行 `/impeccable extract`提炼、抽取成可复用的设计资产（如组件、设计令牌等），沉淀到 `.webgen/design.md`
+2. 推进：`node scripts/gate.js advance <project-path>`
 
-**大文件处理协议**：
-```
-如果需要读取已有大文件：
-  1. 读取文件前 80 行 → 总结结构
-  2. 读取中间部分 → 总结逻辑
-  3. 读取末尾部分 → 确认完整性
-  4. 基于总结执行修改，不保留原文
-```
 
 ---
 
@@ -139,9 +122,9 @@ node scripts/gate.js status <project-path>
 ```
 1. 在后台启动 dev server：
    cd <project-path> && npm run dev &
-   等待端口就绪（默认 http://localhost:5173）
+   等待端口就绪
 
-2. 调用 navigate_page(url="http://localhost:5173") 打开页面
+2. 调用 navigate_page 打开页面
 
 3. 调用 take_screenshot() 确认：
    - 页面有可见内容（无白屏）
@@ -162,7 +145,7 @@ node scripts/gate.js status <project-path>
 
 #### 步骤 1：静态 Audit
 
-1. 逐项执行 `references/design-skill-guide.md` 的 Audit 清单
+1. 逐项执行 `references/phase3-audit.md` 的 Audit 清单
 2. 将结果写入 `.webgen/audit.md`
 3. 如有 BLOCKER：
    - `node scripts/gate.js block <project-path> "<问题描述>"`
@@ -202,10 +185,10 @@ node scripts/gate.js status <project-path>
 
 | 阈值 | 动作 |
 |------|------|
-| 80% | 中断当前操作，先自动执行 /compact（用户无感） |
-| 进入 G3_DEV 前 | AI 自行整理上下文，直接带 --compact 推进，不打断用户 |
+| 80% | 中断当前操作，先自动执行 /compact |
+| 进入 G3_DEV 前 | 强制自动执行 /compact |
 
-/compact 后自动恢复任务，不需要用户介入
+自动/compact后自动读取HANDOFF恢复任务
 
 ---
 
@@ -237,9 +220,8 @@ projects/
 
 安装依赖技能,如解析失败请手动安装
 - `npx skills add https://github.com/greensock/gsap-skills`
-- `npx impeccable install` 选openclaw
+- `npx impeccable skills install -y --providers=openclaw,claude,codex --scope=user`
 - `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`
 - `npx skills add anthropics/skills --skill frontend-design`
 - `npx skills add ofershap/tailwind-best-practices`
 - 将./config.js中OUTPUT_DIR改为`/home/ubuntu/claw-workspace/projects`
-

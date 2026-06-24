@@ -1,32 +1,95 @@
 # Impeccable 前端设计开发工作流
 
-> 本文件为索引入口，详细内容已拆分至 `references/impeccable/` 子目录。
+## 页面核心流程
 
----
-
-## 快速入口
-
-| 场景 | 直达文件 |
-| :--- | :--- |
-| 查阅完整目录与阅读路径 | [impeccable/00-index.md](./impeccable/00-index.md) |
-| 页面类型灵感参考（Landing / Admin / Form） | [design/Landing.md](./design/Landing.md)、[design/admin.md](./design/admin.md)、[design/form.md](./design/form.md) |
-| 设计口味基准值 + 全局禁令 | [impeccable/01-design-taste-baseline.md](./impeccable/01-design-taste-baseline.md) |
-| Gate 控制 + 准出脚本 + 异常路径 | [impeccable/02-gate-control.md](./impeccable/02-gate-control.md) |
-| 阶段 0：初始化 / 技术栈声明 | [impeccable/03-phase0-setup.md](./impeccable/03-phase0-setup.md) |
-| 阶段 1：shape + critique / Block Tree | [impeccable/04-phase1-define.md](./impeccable/04-phase1-define.md) |
-| 阶段 2：craft + 文件结构 + 交互状态 | [impeccable/05-phase2-build.md](./impeccable/05-phase2-build.md) |
-| 阶段 3：audit 审计清单 + AI 反模式检测 | [impeccable/06-phase3-audit.md](./impeccable/06-phase3-audit.md) |
-| 阶段 4：精雕流水线 + harden 代码规范 | [impeccable/07-phase4-polish.md](./impeccable/07-phase4-polish.md) |
-| 知识沉淀 + 多人协作 | [impeccable/08-knowledge.md](./impeccable/08-knowledge.md) |
-| 全命令速查表 | [impeccable/09-commands.md](./impeccable/09-commands.md) |
-
----
-
-## 调用时序（一览）
-
+### 流程图
 ```
-init → shape → critique → craft
-                           ↳ bolder / colorize / layout 穿插
-                           ↓
-               harden + onboard → audit → polish → Ship
+[阶段0：准备与生成]
+   init → teach → shape → craft（生成初版）
+                    ↓
+【第一轮：筑基闭环】
+  检查：audit + critique + onboard + document(同步)
+    → 修复：clarify + adapt + optimize
+    → 增强：typeset + colorize + layout + animate
+    → 加固：harden + distill
+                    ↓
+【第二轮：精磨闭环】
+  检查：polish + document(同步)
+    → 修复：clarify(复查) + adapt(复查)
+    → 增强：bolder + delight + overdrive
+    → 加固：quieter + harden(复查) + document(最终锁定)
+                    ↓
+                 ✅ 可交付
 ```
+
+### 核心流程（双轮迭代）
+
+#### 阶段 0：准备与生成（一次性基建）
+
+此阶段不涉及检查/修复，只构建可用的初版页面。
+
+- **提取设计线索** `/impeccable extract` —— 从已有竞品、旧页面或设计稿中提取设计线索、组件模式或内容结构（若是全新页面可跳过）[可选逆向提取]
+- **初始化** `/impeccable init` —— 初始化项目
+- **上下文建立** `/impeccable teach` —— 设置 PRODUCT.md 和 DESIGN.md，注入产品目标与设计上下文
+- **蓝图规划** `/impeccable shape` —— 在写代码前，规划 UX 流程、信息架构与 UI 布局蓝图
+- **构建与视觉迭代** `/impeccable craft` —— 执行完整的“规划→构建”流程，自带多轮视觉迭代，生成可直接运行的前端代码初版
+    **craft 代码执行步骤**：
+    1. 读取 `.webgen/design.md` 的 Block Tree 和组件清单
+    2. 按以下顺序逐步落地（每步完成才进行下一步）：
+    - a. 基础结构：`js/App.jsx` + `js/router.jsx`
+    - b. 状态管理：`js/store/*.js`
+    - c. API 层：`js/api/*.js`
+    - d. 逐个区块：`sections/*.jsx`（从上到下）
+    - e. 复用组件：`js/components/*.jsx`
+    3. 每个文件生成后检查文件大小，>30K 立即拆分
+    4. 所有文件生成完成，更新 `vite.config.js` 的 proxy 配置
+
+
+
+#### 第一轮：筑基大闭环（夯实基础，解决硬伤）
+
+按 检查 → 修复 → 增强 → 加固 顺序执行，确保核心体验稳定
+
+| 阶段 | 命令 | 职责说明 |
+|------|------|----------|
+| **1. 检查** | `audit` | 技术质量扫描（性能、可访问性、语法） |
+| | `critique` + `/design-taste-frontend` | 整体 UX 设计评审，生成问题报告 |
+| | `onboard` | 根据上下文+诊断结果，生成优先级排序的优化引导方案 |
+| | `document` | 根据当前代码同步更新 DESIGN.md，确保文档与初版代码一致 |
+| **2. 修复** | `clarify` | 修正文案、标签、微文案（语义与一致性） |
+| | `adapt` | 修复响应式断点、触摸交互等设备适配问题 |
+| | `optimize` | 修复性能瓶颈（加载、渲染、资源） |
+| **3. 增强** | `typeset` | 确立字体层级与节奏（夯实文字基础） |
+| | `colorize` | 应用配色方案，建立视觉基调 |
+| | `layout` | 调整布局结构，对齐网格系统 |
+| | `animate` | 添加基础过渡与微交互（先搭骨架） |
+| **4. 加固** | `harden` | 增加错误处理、边界情况、加载态（保证稳定性） |
+| | `distill` | 梳理信息层级，精简视觉噪音，解决”乱、重、层级不清” |
+
+
+#### 第二轮：精磨小闭环（亮点提升，追求极致）
+
+从复查开始，侧重亮点打磨与整体平衡。
+
+| 阶段 | 命令 | 职责说明 |
+|------|------|----------|
+| **1. 检查** | `polish` | 对整体代码和视觉进行细粒度质量扫描（相当于二次审计） |
+| | `document` | （再次同步）若第一轮修复/增强导致设计文档漂移，在此刷新 |
+| **2. 修复** | `clarify`（复查） | 复查并润色所有剩余文案细节 |
+| | `adapt`（复查） | 修复极端或小众设备下的遗留适配问题 |
+| **3. 增强** | `bolder` | 强化视觉冲击力（用于关键行动点或品牌核心区） |
+| | `delight` | 增加令人愉悦的微反馈、过渡彩蛋 |
+| | `overdrive` | 针对重点模块施加”超常”视觉亮点（选择性使用） |
+| **4. 加固** | `quieter` | 平衡上一轮增强带来的激进或过度刺激，确保整体舒适度 |
+| | `harden`（复查） | 对新增强部分做最后一轮异常兜底（确保花哨不影响稳定性） |
+| | `document` | （最终锁定）输出最终版 DESIGN.md，与交付代码完全对齐 |
+
+## 核心原则
+
+- **以终为始**：始终围绕最终目标（用户价值）来驱动每一步迭代
+- **分层推进**：从基础能力到视觉表现，逐层构建，避免一步到位
+- **闭环反馈**：每个阶段都应有明确产出，并形成可验证的反馈闭环
+- **文档驱动**：通过 DESIGN.md 实现“所见即所得”的开发与协作模式
+- **持续演进**：将每一次迭代都视为一次完整的‘检查→修复→增强→加固’闭环，即使只是改动一个按钮，也要走完这四步心智检查
+
+## impeccable 命令查询表 [common.md](`./common.md`)
