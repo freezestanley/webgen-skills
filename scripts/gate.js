@@ -117,8 +117,24 @@ function getSectionLines(sections, namePrefix) {
   return key ? cleanupSection(sections[key]) : [];
 }
 
-function assertRequiredSections(fileLabel, sections, names) {
-  const missing = names.filter((name) => getSectionLines(sections, name).length === 0);
+function getCanonicalSectionLines(sections, section) {
+  const candidates = [section.name, ...(section.aliases || [])];
+  for (const candidate of candidates) {
+    const lines = getSectionLines(sections, candidate);
+    if (lines.length > 0) {
+      return lines;
+    }
+  }
+  return [];
+}
+
+function assertRequiredSections(fileLabel, sections, requiredSections) {
+  const missing = requiredSections
+    .map((section) => (
+      typeof section === "string" ? { name: section, aliases: [] } : section
+    ))
+    .filter((section) => getCanonicalSectionLines(sections, section).length === 0)
+    .map((section) => section.name);
   if (missing.length > 0) {
     fail(`${fileLabel} 未完成,禁止推进`, `缺少有效内容的章节:${missing.join("、")}`);
   }
@@ -145,15 +161,7 @@ function validateRequirements(projectPath) {
 function validateDesign(projectPath) {
   const filePath = path.join(projectPath, config.WEBGEN_DIR, config.DESIGN_FILE);
   const sections = parseSections(readTextFile(filePath, "design.md"));
-  assertRequiredSections("design.md", sections, [
-    "区块树",
-    "核心设计变量",
-    "布局骨架",
-    "组件清单",
-    "路由设计",
-    "状态管理",
-    "接口代理配置"
-  ]);
+  assertRequiredSections("design.md", sections, config.DESIGN_SECTIONS);
 }
 
 function sha256(content) {
@@ -252,7 +260,7 @@ function validateAudit(projectPath) {
 
   // 2. console.error 必须为 0
   const runtimeSection = txt.split("## 运行时验证")[1] || "";
-  if (!/console\.error 数量:\s*0/.test(runtimeSection)) {
+  if (!/console\.error 数量[：:]\s*0/.test(runtimeSection)) {
     fail(
       "运行时验证未通过:console.error 不为 0,禁止推进",
       "请修复所有 console.error 后重新执行运行时验证"
@@ -260,7 +268,7 @@ function validateAudit(projectPath) {
   }
 
   // 3. 运行时结论必须是 PASS
-  if (!/结论:\s*PASS/.test(runtimeSection)) {
+  if (!/结论[：:]\s*PASS/.test(runtimeSection)) {
     fail(
       "运行时验证结论不是 PASS,禁止推进",
       "请确认截图无白屏、console.error 为 0,再将结论改为 PASS"

@@ -31,18 +31,23 @@ node scripts/init-project.js <project-name> ./projects
 projects/<project-name>/
   .webgen/
     gate.json
+    project.json
     requirements.md
     design.md
     audit.md
+    shape-output.md
+    critique-score.json
   index.html
-  main.js
   package.json
   vite.config.js
   tailwind.config.js
   postcss.config.js
-  styles/main.css
-  sections/
-  js/
+  src/
+    main.jsx
+    app/
+    api/
+    pages/
+    styles/
   docs/
 ```
 
@@ -95,10 +100,10 @@ server: {
 
 ## zustand Store 规范
 
-每个业务模块一个 store 文件，放 `js/store/`：
+每个业务模块一个 store 文件，放 `src/store/`：
 
 ```js
-// js/store/authStore.js
+// src/store/authStore.js
 import { create } from "zustand";
 
 const useAuthStore = create((set) => ({
@@ -117,7 +122,7 @@ export default useAuthStore;
 ## axios 封装规范
 
 ```js
-// js/api/request.js
+// src/api/request.js
 import axios from "axios";
 
 const request = axios.create({
@@ -152,17 +157,9 @@ export default request;
 
 ## 图片素材规范
 
-运行获取图片作为素材,只允许使用百度搜素
-
-```
-python3 image_search.py [关键词] [下载数量]
-```
-```
-Unsplash：https://images.unsplash.com/photo-<id>?w=800&q=80
-Pexels：https://images.pexels.com/photos/<id>/pexels-photo-<id>.jpeg?w=800
-```
+优先使用 Unsplash/Pexels搜索图片素材
 - 图片下载到本地,项目assets文件夹下
-- 找不到图使用默认占位图`./default.jpg`
+- 找不到图,使用项目下`assets/default.jpg`作为默认占位图 
 - 禁止直接读取图片,撑爆context
 
 在 HTML/JSX 中直接引用：
@@ -177,5 +174,4 @@ Pexels：https://images.pexels.com/photos/<id>/pexels-photo-<id>.jpeg?w=800
 cd projects/<project-name>
 npm install
 npm run dev
-# → http://localhost:5173
 ```

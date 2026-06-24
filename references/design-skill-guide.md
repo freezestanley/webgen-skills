@@ -36,11 +36,11 @@
     **craft 代码执行步骤**：
     1. 读取 `.webgen/design.md` 的 Block Tree 和组件清单
     2. 按以下顺序逐步落地（每步完成才进行下一步）：
-    - a. 基础结构：`js/App.jsx` + `js/router.jsx`
-    - b. 状态管理：`js/store/*.js`
-    - c. API 层：`js/api/*.js`
-    - d. 逐个区块：`sections/*.jsx`（从上到下）
-    - e. 复用组件：`js/components/*.jsx`
+    - a. 基础结构：`src/app/App.jsx` + `src/app/router.jsx`
+    - b. 状态管理：`src/store/*.js`
+    - c. API 层：`src/api/*.js`
+    - d. 逐个区块：`src/pages/**/*.jsx`（从上到下）
+    - e. 复用组件：`src/components/*.jsx`
     3. 每个文件生成后检查文件大小，>30K 立即拆分
     4. 所有文件生成完成，更新 `vite.config.js` 的 proxy 配置
 

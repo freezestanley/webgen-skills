@@ -137,8 +137,8 @@ node scripts/gate.js status <project-path>
 5. 将运行时验证结论写入 audit.md：
    ## 运行时验证
    - 截图：[PASS/FAIL]
-   - console.error 数量：<N>（必须为 0 才能继续）
-   - 结论：[PASS/BLOCKED]
+   - console.error 数量：<N>（必须为 0 才能继续，兼容 `:` / `：`）
+   - 结论：[PASS/BLOCKED]（兼容 `:` / `：`）
 ```
 
 **任意项 FAIL → 禁止进入静态 Audit，必须先修复再重跑步骤 0。**
@@ -171,7 +171,7 @@ node scripts/gate.js status <project-path>
 ### G5_PREVIEW → G6_PUBLISH → DONE：发布
 
 **执行步骤**：
-1. 执行`npm run build && npm run preview`并在浏览器或CDP中，最大化并打开页面，向用户确认是否发布
+1. 执行 `npm run build`，必要时再执行 `npm run preview` 并在浏览器或 CDP 中打开页面，向用户确认是否发布
 2. **等待用户口头确认发布**
 3. 执行：`node scripts/publish.js <project-path> [--dest <dir>]`
 4. `publish.js` 构建成功后自动推进 Gate 到 DONE
@@ -224,4 +224,4 @@ projects/
 - `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`
 - `npx skills add anthropics/skills --skill frontend-design`
 - `npx skills add ofershap/tailwind-best-practices`
-- 将./config.js中OUTPUT_DIR改为`/home/ubuntu/claw-workspace/projects`
+- 默认输出目录由 `config.js` 的 `OUTPUT_DIR` 控制，仓库默认值为相对路径 `projects/`

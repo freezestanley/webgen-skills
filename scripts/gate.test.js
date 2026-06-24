@@ -84,10 +84,10 @@ function writeDesign(projectPath) {
   const designPath = path.join(projectPath, config.WEBGEN_DIR, config.DESIGN_FILE);
   fs.writeFileSync(designPath, `# 设计方案 — demo-page
 
-## 区块树（Block Tree）
+## 区块树
 Hero 概览区 -> 权益列表 -> 资料表单 -> 帮助入口
 
-## 核心设计变量（Design Tokens）
+## 核心设计变量
 主色 #0f766e，圆角 16，标题使用 32/24/18 层级。
 
 ## 布局骨架
@@ -107,9 +107,41 @@ zustand 保存资料表单和保存状态。
 `);
 }
 
+function writeLegacyDesign(projectPath) {
+  const designPath = path.join(projectPath, config.WEBGEN_DIR, config.DESIGN_FILE);
+  fs.writeFileSync(designPath, `# 设计方案 — demo-page
+
+## Block Tree（区块树）
+Hero 概览区 -> 权益列表 -> 资料表单 -> 帮助入口
+
+## Design Tokens
+主色 #0f766e，圆角 16，标题使用 32/24/18 层级。
+
+## 布局骨架（响应式断点）
+桌面端双列，移动端单列堆叠。
+
+## 组件清单
+Antd Card、Form、Button，自定义 MemberHero。
+
+## 路由设计
+/member 作为主路由。
+
+## 状态管理（zustand）
+zustand 保存资料表单和保存状态。
+
+## 接口代理配置
+/api 代理到本地后端服务。
+`);
+}
+
 function writeAudit(projectPath, { blockers = "无", conclusion = "PASS" } = {}) {
   const auditPath = path.join(projectPath, config.WEBGEN_DIR, config.AUDIT_FILE);
   fs.writeFileSync(auditPath, `# 自检报告 — demo-page
+
+## 运行时验证
+- 截图：PASS
+- console.error 数量：0
+- 结论：PASS
 
 ## 适配体检
 - [x] 响应式断点（sm/md/lg/xl）
@@ -222,6 +254,33 @@ test("G1_REQUIREMENTS requires explicit confirmation even when requirements are 
   assert.match(result.stderr, /confirm|确认/);
 });
 
+test("init-project skips scaffold runtime artifacts", (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "webgen-init-"));
+  t.after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const init = runNodeScript(initScript, ["demo-page", tmpDir]);
+  assert.equal(init.status, 0, init.stderr || init.stdout);
+
+  const projectPath = path.join(tmpDir, "demo-page");
+  assert.ok(fs.existsSync(path.join(projectPath, "src", "main.jsx")));
+  assert.equal(fs.existsSync(path.join(projectPath, "node_modules")), false);
+  assert.equal(fs.existsSync(path.join(projectPath, "dist")), false);
+});
+
+test("init-project writes gate-compatible design.md section names", (t) => {
+  const projectPath = createProject(t);
+  const designPath = path.join(projectPath, config.WEBGEN_DIR, config.DESIGN_FILE);
+  const design = fs.readFileSync(designPath, "utf8");
+
+  assert.match(design, /^## 区块树$/m);
+  assert.match(design, /^## 核心设计变量$/m);
+  assert.match(design, /^## 接口代理配置$/m);
+  assert.doesNotMatch(design, /^## Block Tree（区块树）$/m);
+  assert.doesNotMatch(design, /^## Design Tokens$/m);
+});
+
 test("G2_DESIGN requires compact acknowledgement before entering G3_DEV", (t) => {
   const projectPath = createProject(t);
 
@@ -236,6 +295,29 @@ test("G2_DESIGN requires compact acknowledgement before entering G3_DEV", (t) =>
   const result = runNodeScript(gateScript, ["advance", projectPath, "--confirm", "方案确认通过，可以进入开发阶段"]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /compact/i);
+});
+
+test("G2_DESIGN accepts legacy design section aliases", (t) => {
+  const projectPath = createProject(t);
+
+  assert.equal(runNodeScript(gateScript, ["advance", projectPath]).status, 0);
+  writeRequirements(projectPath);
+  assert.equal(
+    runNodeScript(gateScript, ["advance", projectPath, "--confirm", "需求确认完毕，可以进入方案阶段"]).status,
+    0
+  );
+
+  writeLegacyDesign(projectPath);
+  writeShape(projectPath);
+  writeCritique(projectPath);
+
+  const result = runNodeScript(gateScript, [
+    "advance", projectPath,
+    "--confirm", "方案确认通过，可以进入开发阶段",
+    "--compact"
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test("G4_AUDIT rejects advance when audit has blockers or non-pass conclusion", (t) => {
@@ -255,6 +337,19 @@ test("G4_AUDIT rejects advance when audit has blockers or non-pass conclusion", 
   assert.match(result.stderr, /BLOCKER|PASS|审计|audit/i);
 });
 
+test("G4_AUDIT accepts runtime validation that uses Chinese punctuation", (t) => {
+  const projectPath = createProject(t);
+
+  updateGate(projectPath, (state) => ({
+    ...state,
+    current: "G4_AUDIT"
+  }));
+  writeAudit(projectPath);
+
+  const result = runNodeScript(gateScript, ["advance", projectPath]);
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("G6_PUBLISH cannot be advanced directly without running publish.js", (t) => {
   const projectPath = createProject(t);
 
@@ -266,6 +361,70 @@ test("G6_PUBLISH cannot be advanced directly without running publish.js", (t) =>
   const result = runNodeScript(gateScript, ["advance", projectPath, "--confirm", "确认发布"]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /publish\.js|发布/i);
+});
+
+test("publish.js copies dist to destinations with spaces safely", (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "webgen-publish-"));
+  t.after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const projectPath = path.join(tmpDir, "demo-page");
+  const webgenDir = path.join(projectPath, config.WEBGEN_DIR);
+  const destDir = path.join(tmpDir, "deploy dir");
+
+  fs.mkdirSync(path.join(projectPath, "node_modules"), { recursive: true });
+  fs.mkdirSync(path.join(projectPath, "dist"), { recursive: true });
+  fs.mkdirSync(webgenDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(projectPath, "package.json"),
+    JSON.stringify({
+      name: "demo-page",
+      private: true,
+      scripts: {
+        build: "node -e \"const fs=require('fs'); fs.mkdirSync('dist',{recursive:true}); fs.writeFileSync('dist/index.html','ok')\""
+      }
+    }, null, 2)
+  );
+  fs.writeFileSync(path.join(projectPath, "dist", "index.html"), "seed");
+  fs.writeFileSync(
+    path.join(webgenDir, config.GATE_FILE),
+    JSON.stringify({
+      project: "demo-page",
+      current: "G6_PUBLISH",
+      blocked: false,
+      blockReason: null,
+      history: [],
+      workflowVersion: config.WORKFLOW_VERSION,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }, null, 2)
+  );
+  fs.writeFileSync(
+    path.join(webgenDir, config.PROJECT_FILE),
+    JSON.stringify({
+      name: "demo-page",
+      description: "",
+      author: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      dist: null
+    }, null, 2)
+  );
+  fs.mkdirSync(destDir, { recursive: true });
+
+  const result = runNodeScript(path.join(repoRoot, "scripts/publish.js"), [
+    projectPath,
+    "--dest",
+    destDir
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(destDir, "index.html")), true);
+  assert.match(
+    fs.readFileSync(path.join(webgenDir, config.GATE_FILE), "utf8"),
+    /"current": "DONE"/
+  );
 });
 
 // ─── impeccable 校验新用例 ───────────────────────────────────────────────────

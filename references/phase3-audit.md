@@ -1,6 +1,6 @@
 # 阶段 3：全面体检（Audit）
 
-**触发时机**：G3_BUILD 准出通过，进入 G4_AUDIT。
+**触发时机**：G3_DEV 准出通过，进入 G4_AUDIT。
 
 ---
 
@@ -16,7 +16,7 @@
 [ ] 所有路由/页面均可正常访问（无 404/500）
 ```
 
-**任意一项未通过**：回退到 Phase 2，修复后重新执行 G3_BUILD，再重新进入本阶段。
+**任意一项未通过**：回退到开发阶段修复后，再重新进入本阶段。
 
 ---
 
@@ -154,11 +154,11 @@ node -e "
     process.exit(1);
   }
   const runtimeSection = txt.split('## 运行时验证')[1] || '';
-  if (!/console\.error 数量：\s*0/.test(runtimeSection)) {
+  if (!/console\.error 数量[：:]\s*0/.test(runtimeSection)) {
     console.error('[G4] console.error 不为 0，禁止推进');
     process.exit(1);
   }
-  if (!/结论：\s*PASS/.test(runtimeSection)) {
+  if (!/结论[：:]\s*PASS/.test(runtimeSection)) {
     console.error('[G4] 运行时验证结论不是 PASS，禁止推进');
     process.exit(1);
   }

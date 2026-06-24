@@ -21,9 +21,37 @@ const path = require("path");
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const config = require(path.join(SKILL_ROOT, "config"));
 
+const SKIP_TEMPLATE_ENTRIES = new Set([
+  "node_modules",
+  "dist",
+  ".webgen",
+  "coverage",
+  ".DS_Store"
+]);
+
+function renderDesignTemplate(projectName, projectDir) {
+  const sections = config.DESIGN_SECTIONS.map((section) => (
+    `## ${section.name}
+<!-- ${section.description} -->`
+  )).join("\n\n");
+
+  return `# 设计方案 — ${projectName}
+
+> 此文件由 LLM 在 G2_DESIGN 阶段生成，先执行 /compact，再在用户确认后执行：
+> \`node scripts/gate.js advance ${projectDir} --confirm "方案确认通过，可以进入开发阶段" --compact\`
+> 以下章节标题会被 Gate 校验，请勿改名；老项目历史标题仅作为兼容输入。
+
+${sections}
+`;
+}
+
 function copyDir(src, dest) {
   if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (SKIP_TEMPLATE_ENTRIES.has(entry.name)) {
+      continue;
+    }
+
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
     if (entry.isDirectory()) {
@@ -161,32 +189,10 @@ fs.writeFileSync(path.join(webgenDir, config.REQUIREMENTS_FILE), `# 需求文档
 `);
 
 // 初始化 design.md 占位
-fs.writeFileSync(path.join(webgenDir, config.DESIGN_FILE), `# 设计方案 — ${projectName}
-
-> 此文件由 LLM 在 G2_DESIGN 阶段生成，先执行 /compact，再在用户确认后执行：
-> \`node scripts/gate.js advance ${projectDir} --confirm "方案确认通过，可以进入开发阶段" --compact\`
-
-## 区块树（Block Tree）
-<!-- 页面语义区块层级结构 -->
-
-## 核心设计变量（Design Tokens）
-<!-- 颜色、间距、字体 -->
-
-## 布局骨架
-<!-- 响应式断点策略 -->
-
-## 组件清单
-<!-- 使用的 antd 组件 + 自定义组件 -->
-
-## 路由设计
-<!-- react-router-dom 路由规划 -->
-
-## 状态管理
-<!-- zustand store 设计 -->
-
-## 接口代理配置
-<!-- vite proxy 配置 -->
-`);
+fs.writeFileSync(
+  path.join(webgenDir, config.DESIGN_FILE),
+  renderDesignTemplate(projectName, projectDir)
+);
 
 // 初始化 shape-output.md 占位（G2 阶段由 /impeccable shape 填写）
 fs.writeFileSync(path.join(webgenDir, config.SHAPE_FILE), `# Shape Output — ${projectName}

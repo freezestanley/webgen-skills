@@ -4,7 +4,7 @@
  */
 module.exports = {
   // 子项目默认输出根目录（可被用户在会话中覆盖，但必须写回此文件）
-  OUTPUT_DIR: "/Users/za-stanlexu/Desktop/ff/d/projects",
+  OUTPUT_DIR: "/Users/za-stanlexu/Desktop/ff/e/projects/",
 
   // .webgen 状态文件夹名（子项目内）
   WEBGEN_DIR: ".webgen",
@@ -28,6 +28,42 @@ module.exports = {
   SHAPE_FILE: "shape-output.md",
   CRITIQUE_FILE: "critique-score.json",
 
+  // design.md 标准章节定义，模板生成与 gate 校验必须共用
+  DESIGN_SECTIONS: [
+    {
+      name: "区块树",
+      description: "页面语义区块层级结构",
+      aliases: ["区块树（Block Tree）", "Block Tree（区块树）", "Block Tree"]
+    },
+    {
+      name: "核心设计变量",
+      description: "颜色、间距、字体",
+      aliases: ["核心设计变量（Design Tokens）", "Design Tokens"]
+    },
+    {
+      name: "布局骨架",
+      description: "响应式断点策略",
+      aliases: ["布局骨架（响应式断点）"]
+    },
+    {
+      name: "组件清单",
+      description: "使用的 antd 组件 + 自定义组件"
+    },
+    {
+      name: "路由设计",
+      description: "react-router-dom 路由规划"
+    },
+    {
+      name: "状态管理",
+      description: "zustand store 设计",
+      aliases: ["状态管理（zustand）"]
+    },
+    {
+      name: "接口代理配置",
+      description: "vite proxy 配置"
+    }
+  ],
+
   // Gate 工作流版本：v1 = 老项目（跳过 impeccable 校验），v2 = 新项目（强制校验）
   WORKFLOW_VERSION: "v2",
 
@@ -48,7 +84,7 @@ module.exports = {
   // context 容量警告阈值
   CONTEXT_COMPACT_THRESHOLD: 0.80,
 
-  // 图片素材 CDN（禁止下载到本地）
+  // 图片素材搜索入口（仅供检索，禁止在页面中直接引用远程地址）
   IMAGE_SOURCES: {
     unsplash: "https://unsplash.com/s/photos/<keyword>",
     pexels: "https://www.pexels.com/search/<keyword>"

@@ -1,15 +1,15 @@
-#!/usr/bin/env /Library/Frameworks/Python.framework/Versions/3.14/bin/python3
+#!/usr/bin/env python3
 """
 图片搜索下载脚本
 使用 pyimagedl 从多个图片来源搜索并下载图片
 
 用法：
-    python3 image_search.py [关键词] [下载数量]
+    python3 scripts/image_search.py [关键词] [下载数量]
 
 示例：
-    python3 image_search.py 篮球 10
-    python3 image_search.py 足球        # 使用默认数量 5
-    python3 image_search.py             # 使用默认关键词和数量
+    python3 scripts/image_search.py 篮球 10
+    python3 scripts/image_search.py 足球        # 使用默认数量 5
+    python3 scripts/image_search.py             # 使用默认关键词和数量
 """
 
 import sys

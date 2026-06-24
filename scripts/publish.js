@@ -82,7 +82,11 @@ try {
   if (destDir) {
     const absDest = path.resolve(destDir);
     console.log(`[PUBLISH] 复制到部署目录：${absDest}`);
-    execSync(`cp -r ${distDir}/. ${absDest}`, { stdio: "inherit" });
+    fs.mkdirSync(absDest, { recursive: true });
+    fs.cpSync(distDir, absDest, {
+      force: true,
+      recursive: true
+    });
   }
 
   // 推进 Gate 到 DONE
