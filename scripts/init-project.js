@@ -7,6 +7,7 @@
  * 执行结果：
  *   <output-dir>/<project-name>/
  *     .webgen/
+ *       project.json       # 项目元信息（名称/简介/作者/时间）
  *       gate.json          # Gate 状态
  *       requirements.md    # 需求文档（待填写）
  *       design.md          # 设计方案（G2 阶段生成）
@@ -33,10 +34,39 @@ function copyDir(src, dest) {
   }
 }
 
-const [,, projectName, outputDir] = process.argv;
+// 参数解析：支持 --desc "简介" --session-key "sessionkey字符串"
+// sessionkey 格式：agent:<agentId>:<channel>:<userAccount>:dm:<sessionNo>
+// author 优先从 --session-key 中解析 userAccount（第4段），也可直接用 --author 覆盖
+const args = process.argv.slice(2);
+let projectName, outputDir, description = "", author = "", sessionKey = "";
+const positional = [];
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === "--desc" && args[i + 1]) {
+    description = args[++i];
+  } else if (args[i] === "--author" && args[i + 1]) {
+    author = args[++i];
+  } else if (args[i] === "--session-key" && args[i + 1]) {
+    sessionKey = args[++i];
+  } else {
+    positional.push(args[i]);
+  }
+}
+[projectName, outputDir] = positional;
+
+// 从 sessionkey 解析 userAccount（第4段，index 3）
+// 格式：agent:<agentId>:<channel>:<userAccount>:dm:<sessionNo>
+// URL编码的 sessionkey 先 decode（如 %3A → :）
+if (!author && sessionKey) {
+  const decoded = decodeURIComponent(sessionKey);
+  const parts = decoded.split(":");
+  // parts[0]=agent parts[1]=agentId parts[2]=channel parts[3]=userAccount
+  if (parts.length >= 4 && parts[0] === "agent") {
+    author = parts[3];
+  }
+}
 
 if (!projectName) {
-  console.error("用法：node scripts/init-project.js <project-name> [output-dir]");
+  console.error("用法：node scripts/init-project.js <project-name> [output-dir] [--desc \"简介\"] [--session-key \"sessionkey\"]");
   process.exit(1);
 }
 
@@ -67,6 +97,21 @@ if (fs.existsSync(scaffoldDir)) {
 // 创建 .webgen/
 fs.mkdirSync(webgenDir, { recursive: true });
 
+// 初始化 project.json（项目元信息）
+const now = new Date().toISOString();
+const projectMeta = {
+  name: projectName,
+  description: description || "",
+  author: author || "",
+  createdAt: now,
+  updatedAt: now,
+  dist: null
+};
+fs.writeFileSync(
+  path.join(webgenDir, config.PROJECT_FILE),
+  JSON.stringify(projectMeta, null, 2)
+);
+
 // 初始化 gate.json
 const gateState = {
   project: projectName,
@@ -75,8 +120,8 @@ const gateState = {
   blockReason: null,
   history: [],
   workflowVersion: config.WORKFLOW_VERSION,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
+  createdAt: now,
+  updatedAt: now
 };
 fs.writeFileSync(
   path.join(webgenDir, config.GATE_FILE),

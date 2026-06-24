@@ -63,6 +63,21 @@ try {
     throw new Error("构建产物 dist/ 不存在，构建可能失败");
   }
 
+  // 打包 dist/ 为 zip，放在项目根目录
+  const zipPath = path.join(absPath, `${path.basename(absPath)}-dist.zip`);
+  console.log(`[PUBLISH] 打包 dist/ → ${zipPath}`);
+  execSync(`cd "${absPath}" && zip -r "${zipPath}" dist`, { stdio: "inherit" });
+
+  // 回写 project.json 的 dist 字段
+  const projectFile = path.join(absPath, config.WEBGEN_DIR, config.PROJECT_FILE);
+  if (fs.existsSync(projectFile)) {
+    const meta = JSON.parse(fs.readFileSync(projectFile, "utf-8"));
+    meta.dist = zipPath;
+    meta.updatedAt = new Date().toISOString();
+    fs.writeFileSync(projectFile, JSON.stringify(meta, null, 2));
+    console.log(`[PUBLISH] project.json dist 已更新：${zipPath}`);
+  }
+
   // 可选：复制到部署目录
   if (destDir) {
     const absDest = path.resolve(destDir);

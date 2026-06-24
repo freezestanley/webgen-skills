@@ -12,6 +12,9 @@ module.exports = {
   // Gate 状态文件名（.webgen/ 下）
   GATE_FILE: "gate.json",
 
+  // 项目元信息文件名（.webgen/ 下）
+  PROJECT_FILE: "project.json",
+
   // 设计方案文件名（.webgen/ 下）
   DESIGN_FILE: "design.md",
 
