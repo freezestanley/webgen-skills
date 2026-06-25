@@ -530,9 +530,9 @@ test("publish.js copies dist to destinations with spaces safely", (t) => {
   fs.writeFileSync(
     path.join(webgenDir, config.PROJECT_FILE),
     JSON.stringify({
-      name: "demo-page",
-      description: "",
-      author: "",
+      name: "demo|page",
+      description: "preview\nrelease",
+      author: "author|name",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       dist: null
@@ -548,6 +548,10 @@ test("publish.js copies dist to destinations with spaces safely", (t) => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(fs.existsSync(path.join(destDir, "index.html")), true);
+  assert.match(
+    result.stdout,
+    /##publishEtart##demo page\|preview release\|author name\|.*demo-page-dist\.zip##publishEnd##/
+  );
   assert.match(
     fs.readFileSync(path.join(webgenDir, config.GATE_FILE), "utf8"),
     /"current": "DONE"/

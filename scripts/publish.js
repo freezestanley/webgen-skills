@@ -11,6 +11,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const config = require(path.join(SKILL_ROOT, "config"));
+const { buildPublishMarker } = require("./lib/publish-marker");
 
 const args = process.argv.slice(2);
 const projectPath = args[0];
@@ -102,6 +103,7 @@ try {
 
   console.log("[PUBLISH] 发布成功，Gate 已推进到 DONE");
   console.log(`[PUBLISH] 构建产物：${distDir}`);
+  console.log(buildPublishMarker(absPath, { dist: zipPath }));
 } catch (err) {
   console.error(`[PUBLISH] 发布失败：${err.message}`);
   // 记录阻塞

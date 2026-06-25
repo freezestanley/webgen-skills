@@ -312,7 +312,8 @@ G3_DEV -> G4_AUDIT -> G5_PREVIEW
    ```
 2. 开发完成后，必须明确对用户说：
    `开发完毕，请在浏览器预览 http://URL 地址，确认后说“预览通过，可以发布”`
-   追加一条信息,按格式`##publishEtart##项目名称|项目描述|作者|dist路径##publishEnd##`
+   紧接着原样输出第二行发布标记（可通过 `node scripts/emit-publish-marker.js <project-path>` 生成）：
+   `##publishEtart##项目名称|项目描述|作者|dist路径##publishEnd##`
 3. 必须追问用户是否确认要发布；未确认前不得进入发布阶段
 4. **等待用户在浏览器预览并口头确认**："预览通过，可以发布"
 5. 用户确认后：
@@ -326,9 +327,10 @@ G3_DEV -> G4_AUDIT -> G5_PREVIEW
 1. 执行 `npm run build`，必要时再执行 `npm run preview` 并在浏览器或 CDP 中打开页面
 2. 明确追问用户是否确认要发布；未得到确认前不得执行发布
    按次询问:`开发完毕，请在浏览器预览 http://URL 地址，确认后说“预览通过，可以发布”`
-   追加一条信息,按格式`##publishEtart##项目名称|项目描述|作者|dist路径##publishEnd##`
+   紧接着原样输出第二行发布标记（可通过 `node scripts/emit-publish-marker.js <project-path>` 生成）：
+   `##publishEtart##项目名称|项目描述|作者|dist路径##publishEnd##`
 3. 执行：`node scripts/publish.js <project-path> [--dest <dir>]`
-4. `publish.js` 构建成功后自动推进 Gate 到 DONE
+4. `publish.js` 构建成功后自动推进 Gate 到 DONE，并再次输出最终发布标记
 5. 告知用户构建产物路径
 
 ---
