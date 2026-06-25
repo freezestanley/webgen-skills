@@ -36,6 +36,8 @@ depends_on:
   3. 读取末尾部分 → 确认完整性
   4. 基于总结执行修改，不保留原文
 ```
+**项目仓库路径**
+`config.js` 的 `OUTPUT_DIR` 控制输出目录，仓库默认值为相对路径 `projects/`
 
 ---
 
@@ -48,7 +50,7 @@ depends_on:
 - **强制接入 Taste**
   - Landing Page
   - 品牌官网
-  - 品牌/故事/About 页
+  - 品牌/故事/About/类ppt 页
   - 活动/营销页
   - 老项目 UI 改版
 - **建议接入 Taste**
@@ -61,7 +63,7 @@ depends_on:
 
 ### 模块路由与三枚旋钮建议
 
-- **品牌/故事/About 页**
+- **品牌/故事/About/类ppt 页**
   - 模块优先：`design-taste-frontend`
   - 高叙事、高实验要求时：`gpt-taste`
   - 建议旋钮：`DESIGN_VARIANCE 6-8`，`MOTION_INTENSITY 5-7`，`VISUAL_DENSITY 2-4`
@@ -119,22 +121,48 @@ depends_on:
 
 ### 控制门执行原则（运行时强制）
 
-- 每次用户发起操作，先执行：`node scripts/gate.js status <project-path>`
+- 每次用户发起操作，项目发现必须先走脚本；入口命令固定为：`node scripts/list-projects.js --limit 5 --offset 0`
+- 只有通过脚本解析出目标项目后，才允许执行：`node scripts/gate.js status <project-path>`
 - `gate.js` 的控制门是脚本强制，不是提示建议；缺少阶段产物、缺少用户确认、缺少 `--compact`、存在 BLOCKER、试图绕过 `publish.js`，都会直接失败
 - 续改已有项目时，凡是新增页面、修改页面、修 bug、补样式、补交互、补文案，都视为 `development-intent`，必须先判断是否需要回退 Gate
 - 用户确认门只能用用户原话推进，命令格式：`node scripts/gate.js advance <project-path> --confirm "用户确认原话"`
 - 从 `G2_DESIGN` 进入 `G3_DEV` 前，必须先完成 `/compact`，推进时额外带上：`--compact`
 - `G6_PUBLISH` 禁止使用 `gate.js advance` 直达 `DONE`，只能执行：`node scripts/publish.js <project-path> [--dest <dir>]`
 
-### 启动时：读取 Gate 状态
+### 启动时：先脚本发现项目，再读取 Gate 状态
 
-每次用户发起操作，第一步必须执行：
+每次用户发起操作，入口顺序固定，不得交换。第一步必须执行：
+
+```bash
+node scripts/list-projects.js --limit 5 --offset 0
+```
+
+执行要求：
+
+1. 无论用户是否已经提供项目名，都必须先展示脚本返回的最近 5 个项目；不得靠 prompt 侧扫描仓库、手工 `ls` 猜目录、或凭上下文记忆推断项目路径
+2. 项目发现与分页只能以脚本返回的 `limit`、`offset`、`hasMore` 为准；`查看更多项目` 只是用户触发翻页的一个示例，不是分页判断依据
+3. 如果用户在本轮请求中明确给出项目名，展示最近 5 个项目后，必须立即解析项目路径：
+
+```bash
+node scripts/resolve-project.js --name "<project-name>"
+```
+
+4. 只有 `resolve-project.js` 返回明确的 `<project-path>` 后，才能执行：
 
 ```bash
 node scripts/gate.js status <project-path>
 ```
 
-根据返回的 `current` 决定下一步行动，不得凭记忆判断。
+5. 如果用户没有给出项目名，而是要求继续翻页（例如点击或输入 `查看更多项目`），只有上一页返回 `hasMore=true` 时才允许继续请求下一页；下一页命令必须延续同一分页契约：
+
+```bash
+node scripts/list-projects.js --limit <上一页 limit> --offset <下一页 offset>
+```
+
+6. 如果首屏列表为空，或分页后确认没有目标项目，必须明确告知当前没有可续改项目，并回退到新建项目引导；不得伪造项目路径或跳过发现流程
+7. 根据返回的 `current` 决定下一步行动，不得凭记忆判断
+
+项目发现必须以脚本输出为准，不得在 prompt 侧扫描。
 
 ### 续改守卫：已有项目发生开发类请求时，必须先回到 G3_DEV
 
@@ -170,14 +198,15 @@ G3_DEV -> G4_AUDIT -> G5_PREVIEW
 
 ### G0_INIT → G1_REQUIREMENTS：项目初始化
 
-**触发**：用户说"新建页面"、"开始一个新项目"
+**触发**：用户说"新建页面"、"开始一个新项目"，或上一节项目发现已确认当前没有可续改项目
 
 **执行步骤**：
-1. 询问项目名称（如未提供）
-2. 执行初始化：`node scripts/init-project.js <name>`
-3. 打开 `.webgen/requirements.md`，引导用户逐项填写
-4. 填写完成后，**等待用户口头确认**："需求确认完毕，可以进入方案阶段"
-5. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "需求确认完毕，可以进入方案阶段"`
+1. 进入创建引导；如果是由上一节“当前没有可续改项目”的结论回退到这里，沿用该结论即可，不再重复另一套空列表话术
+2. 询问项目名称（如未提供）
+3. 执行初始化：`node scripts/init-project.js <name>`
+4. 打开 `.webgen/requirements.md`，引导用户逐项填写
+5. 填写完成后，**等待用户口头确认**："需求确认完毕，可以进入方案阶段"
+6. 用户确认后：`node scripts/gate.js advance <project-path> --confirm "需求确认完毕，可以进入方案阶段"`
 
 **LLM 检查清单**（推进前逐项核实）：
 - [ ] 页面名称已填写
