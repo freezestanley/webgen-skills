@@ -376,9 +376,10 @@ projects/
 ## 安装前置条件：
 
 安装依赖技能,如解析失败请手动安装
-- `npx skills add https://github.com/greensock/gsap-skills`
-- `npx impeccable skills install -y --providers=openclaw,claude,codex --scope=user`
-- `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`
-- `npx skills add anthropics/skills --skill frontend-design`
-- `npx skills add ofershap/tailwind-best-practices`
+- `npx skills add https://github.com/greensock/gsap-skills -g`
+- 安装impeccable `npx skills add pbakaus/impeccable -g` 或 `npx impeccable install`
+- `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend" -g`
+- `npx skills add anthropics/skills --skill frontend-design -g`
+- `npx skills add ofershap/tailwind-best-practices -g`
 - 默认输出目录由 `config.js` 的 `OUTPUT_DIR` 控制，仓库默认值为相对路径 `projects/`
+- 在AGENTS.md中追加，页面相关的新建修改都必须走 webgen skill,禁止绕过
