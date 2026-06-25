@@ -41,30 +41,77 @@ depends_on:
 
 ## 用户需求优化
 
-参考规则：
+此节用于 **页面类型路由**，不是固定视觉处方。先判断页面类型，再决定是否强制接入 Taste Skill、选择哪个模块、三枚旋钮建议区间，以及动效上限。所有案例都属于候选策略，不是必须输出。
 
-- 品牌/故事/About页 → Scrollytelling + GSAP ScrollTrigger
-  案例:
-   ```text
-      页面采用 Scrollytelling（滚动叙事）手法，基于 GSAP + ScrollTrigger 实现。页面像一部纪录片，随着用户滚动，文字、图片、视觉元素沿着一条“故事发现线”层层展开，带领用户从创立初心进入设计哲学，再到关键里程碑，最后自然收束到 CTA。H5 端允许降级为顺序堆叠 + 轻量 reveal，避免强行保留桌面级重滚动编排。
-   ```
-- 数据/仪表盘页 → 数字滚动动效 + 图表渐入
+### Taste 接入等级
 
-- 产品功能页 → 微交互 + hover 状态丰富
-  案例:
-   ```text
-      产品功能页采用微交互增强体验。每个功能模块都配有 hover 状态反馈，如按钮悬停时轻微放大、图标变色、阴影加深等。点击后有即时反馈，如加载动画、状态切换。所有交互都遵循“可预测性”原则，确保用户操作后能清晰感知结果。
-   ```
-- 活动/营销页 → 节奏感强的 keyframe 动画
-  案例:
-   ```text
-      活动页采用节奏感强的 keyframe 动画，配合用户交互触发。例如: GSAP滚动动画的前进或倒退来实现叙事内容的层层展开
-   ```
-- 表单/工具页 → 简洁、快速响应的交互，避免过度动画
-   案例:
-   ```text
-      表单页和工具页注重简洁和快速响应，避免过度动画。表单输入框在聚焦时有轻微的边框高亮，提交按钮在点击时有短暂的颜色变化反馈。所有交互都以提高效率为核心，确保用户能够快速完成任务。
-   ```
+- **强制接入 Taste**
+  - Landing Page
+  - 品牌官网
+  - 品牌/故事/About 页
+  - 活动/营销页
+  - 老项目 UI 改版
+- **建议接入 Taste**
+  - 产品功能页
+  - 登录 / 注册 / onboarding
+- **轻量接入或可选**
+  - 数据/仪表盘页
+  - 表单/工具页
+  - 设置 / 管理页
+
+### 模块路由与三枚旋钮建议
+
+- **品牌/故事/About 页**
+  - 模块优先：`design-taste-frontend`
+  - 高叙事、高实验要求时：`gpt-taste`
+  - 建议旋钮：`DESIGN_VARIANCE 6-8`，`MOTION_INTENSITY 5-7`，`VISUAL_DENSITY 2-4`
+  - 候选策略：若 brief 明确强调品牌历程、沉浸叙事、纪录片式表达，可选 `Scrollytelling + GSAP ScrollTrigger`；若 brief 偏克制，则降级为分段叙事 + 轻量 reveal
+
+- **活动/营销页**
+  - 模块优先：`gpt-taste`
+  - 建议旋钮：`DESIGN_VARIANCE 7-9`，`MOTION_INTENSITY 6-8`，`VISUAL_DENSITY 2-4`
+  - 候选策略：允许更强节奏感与关键帧动画，但必须服从 brief，不得默认落入 AI 紫色渐变和无意义漂浮装饰
+
+- **产品功能页**
+  - 模块优先：`design-taste-frontend`
+  - 需要补齐加载态、错误态、按钮反馈时：`ux-interaction-taste-skill`
+  - 建议旋钮：`DESIGN_VARIANCE 4-6`，`MOTION_INTENSITY 3-5`，`VISUAL_DENSITY 4-5`
+  - 候选策略：默认微交互、hover 状态、结构清晰；不默认使用重滚动或强叙事布局
+
+- **数据/仪表盘页**
+  - 默认轻量接入 Taste
+  - 模块优先：`ux-interaction-taste-skill`
+  - 建议旋钮：`DESIGN_VARIANCE 2-4`，`MOTION_INTENSITY 2-4`，`VISUAL_DENSITY 5-7`
+  - 候选策略：强调信息优先、图表渐入、数字反馈；禁止为了“好看”牺牲密度和可扫读性
+
+- **表单/工具页**
+  - 默认轻量接入 Taste
+  - 模块优先：`ux-interaction-taste-skill`
+  - 建议旋钮：`DESIGN_VARIANCE 2-4`，`MOTION_INTENSITY 1-3`，`VISUAL_DENSITY 5-7`
+  - 候选策略：保持简洁、快速响应、反馈明确；动效只服务状态变化，不服务炫技
+
+- **老项目改版**
+  - 模块优先：`redesign-existing-projects`
+  - 建议旋钮：以原站基线为起点，`DESIGN_VARIANCE +1~2`，`MOTION_INTENSITY +1`，`VISUAL_DENSITY` 按现有信息架构保持
+  - 候选策略：优先修复布局、间距、层级、组件气质，避免整站重写式审美漂移
+
+- **图稿还原**
+  - 模块优先：`image-to-code`
+  - 候选策略：先还原，再做最小必要的响应式和交互修正，不要借机替换设计语言
+
+### Taste 输出协议
+
+对于强制或建议接入 Taste 的页面，在写代码前必须先完成：
+
+1. 一句 `Design Read`
+2. 模块选择（如 `design-taste-frontend` / `gpt-taste` / `redesign-existing-projects`）
+3. 三枚旋钮设定：
+   - `DESIGN_VARIANCE`
+   - `MOTION_INTENSITY`
+   - `VISUAL_DENSITY`
+4. 字体系统声明（禁止默认使用 Inter）
+5. Tailwind 基础色调声明
+6. Anti-Slop 禁令锁定（如禁止 AI 紫色大渐变、无意义徽章、无意义 `SECTION 01` 标签）
 
 ---
 
@@ -202,6 +249,15 @@ G3_DEV -> G4_AUDIT -> G5_PREVIEW
 ```
 
 **任意项 FAIL → 禁止进入静态 Audit，必须先修复再重跑步骤 0。**
+
+**截图预算规则**：
+
+- `G3_DEV -> G4_AUDIT` 默认最多 2 张截图
+- 第 1 张用于整页或首屏可用性确认
+- 第 2 张仅用于关键模块或问题区域复查
+- Taste 审美检查默认复用这 2 张截图，不得额外开启截图循环
+- 如代码和已有截图仍无法判断，可额外补 1 张局部截图
+- 单次页面任务常规总预算 3 张，绝对上限 4 张；达到上限后必须停止截图并总结剩余不确定项
 
 #### 步骤 1：静态 Audit
 

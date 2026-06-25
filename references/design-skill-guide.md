@@ -5,16 +5,16 @@
 ### 流程图
 ```
 [阶段0：准备与生成]
-   init → teach → shape → craft（生成初版）
+   init → teach → taste-read → taste-lock → shape → craft（生成初版）
                     ↓
 【第一轮：筑基闭环】
-  检查：audit + critique + onboard + document(同步)
+  检查：audit + critique + Taste Pre-Flight + onboard + document(同步)
     → 修复：clarify + adapt + optimize
     → 增强：typeset + colorize + layout + animate
     → 加固：harden + distill
                     ↓
 【第二轮：精磨闭环】
-  检查：polish + document(同步)
+  检查：polish + Taste Recheck + document(同步)
     → 修复：clarify(复查) + adapt(复查)
     → 增强：bolder + delight + overdrive
     → 加固：quieter + harden(复查) + document(最终锁定)
@@ -31,6 +31,21 @@
 - **提取设计线索** `/impeccable extract` —— 从已有竞品、旧页面或设计稿中提取设计线索、组件模式或内容结构（若是全新页面可跳过）[可选逆向提取]
 - **初始化** `/impeccable init` —— 初始化项目
 - **上下文建立** `/impeccable teach` —— 设置 PRODUCT.md 和 DESIGN.md，注入产品目标与设计上下文
+- **Taste 预配置** —— 在进入 `/impeccable shape` 之前，先完成 Taste 的设计解读与约束锁定：
+  1. 输出一句 `Design Read`
+  2. 选择模块：
+     - `design-taste-frontend`
+     - `gpt-taste`
+     - `image-to-code`
+     - `redesign-existing-projects`
+     - `ux-interaction-taste-skill`
+  3. 初始化三枚旋钮：
+     - `DESIGN_VARIANCE`
+     - `MOTION_INTENSITY`
+     - `VISUAL_DENSITY`
+  4. 声明字体系统（禁止默认 Inter）和 Tailwind 基础色调
+  5. 锁定 Anti-Slop 约束（如禁止 AI 紫色大渐变、无意义漂浮徽章、模板化 section 标签）
+  6. 将上述结论写回 `.webgen/design.md`，使后续 `shape`、`craft`、`critique`、`polish` 共享同一设计契约
 - **蓝图规划** `/impeccable shape` —— 在写代码前，规划 UX 流程、信息架构与 UI 布局蓝图
 - **构建与视觉迭代** `/impeccable craft` —— 执行完整的“规划→构建”流程，自带多轮视觉迭代，生成可直接运行的前端代码初版
     **craft 代码执行步骤**：
@@ -53,7 +68,7 @@
 | 阶段 | 命令 | 职责说明 |
 |------|------|----------|
 | **1. 检查** | `audit` | 技术质量扫描（性能、可访问性、语法） |
-| | `critique` + `/design-taste-frontend` | 整体 UX 设计评审，生成问题报告 |
+| | `critique` + `Taste Pre-Flight` | 基于 Taste 三枚旋钮、模块选择和 Anti-Slop 规则做整体 UX/视觉评审，输出问题报告 |
 | | `onboard` | 根据上下文+诊断结果，生成优先级排序的优化引导方案 |
 | | `document` | 根据当前代码同步更新 DESIGN.md，确保文档与初版代码一致 |
 | **2. 修复** | `clarify` | 修正文案、标签、微文案（语义与一致性） |
@@ -74,6 +89,7 @@
 | 阶段 | 命令 | 职责说明 |
 |------|------|----------|
 | **1. 检查** | `polish` | 对整体代码和视觉进行细粒度质量扫描（相当于二次审计） |
+| | `Taste Recheck` | 基于已有截图和代码结构做最终一致性复查，检查是否仍存在模板化、配色漂移、动效过量等问题 |
 | | `document` | （再次同步）若第一轮修复/增强导致设计文档漂移，在此刷新 |
 | **2. 修复** | `clarify`（复查） | 复查并润色所有剩余文案细节 |
 | | `adapt`（复查） | 修复极端或小众设备下的遗留适配问题 |
@@ -91,5 +107,6 @@
 - **闭环反馈**：每个阶段都应有明确产出，并形成可验证的反馈闭环
 - **文档驱动**：通过 DESIGN.md 实现“所见即所得”的开发与协作模式
 - **持续演进**：将每一次迭代都视为一次完整的‘检查→修复→增强→加固’闭环，即使只是改动一个按钮，也要走完这四步心智检查
+- **职责分离**：Taste 负责设计方向、三枚旋钮和 Anti-Slop；impeccable 负责生成、修复、增强和加固，禁止把 Taste 变成第二条平行工作流
 
 ## impeccable 命令查询表 [common.md](`./common.md`)
