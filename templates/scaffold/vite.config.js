@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import zipPack from "vite-plugin-zip-pack";
+import zipPack from '@adjfut/vite-plugin-zip-pack';
 import net from "net";
 
 /**
