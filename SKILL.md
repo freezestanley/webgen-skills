@@ -307,7 +307,8 @@ G3_DEV -> G4_AUDIT -> G5_PREVIEW
 **执行步骤**：
 1. 直接启动开发服务器并在浏览器最大化并在内打开页面,给用户预览追问是否可发布或修改意见：
    ```bash
-   cd <project-path> && npm install && npm run dev
+   cd <project-path> && npm install && npm run dev && npm run build
+   node scripts/persist-preview-dist.js <project-path>
    # → http://localhost:5173
    ```
 2. 开发完成后，必须明确对用户说：
